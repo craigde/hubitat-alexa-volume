@@ -552,14 +552,7 @@ private boolean authenticate() {
     logDebug "authenticate: token starts with '${refreshToken.take(12)}...'"
     logDebug "authenticate: domain=${amazonDomain}"
 
-    def accessToken = getAccessToken()
-    if (!accessToken) {
-        state.authStatus    = "Error: access token failed"
-        state.lastAuthError = "getAccessToken returned null — check token is valid and try reconnecting"
-        return false
-    }
-
-    def cookies = exchangeForCookies(accessToken)
+    def cookies = exchangeForCookies()
     if (!cookies) {
         state.authStatus    = "Error: cookie exchange failed"
         state.lastAuthError = "exchangeForCookies returned null — set log level to Trace and reconnect for full detail"
@@ -575,52 +568,13 @@ private boolean authenticate() {
     return true
 }
 
-private String getAccessToken() {
-    def result  = null
-    def bodyStr = "app_name=Amazon%20Alexa&app_version=2.2.223830.0&di.sdk.version=6.12.4" +
-                  "&source_token=${URLEncoder.encode(refreshToken.trim(), 'UTF-8')}" +
-                  "&package_name=com.amazon.echo&di.hw.version=phone&platform=android" +
-                  "&requested_token_type=access_token&source_token_type=refresh_token" +
-                  "&di.os.name=android&di.os.version=22&current_version=6.12.4"
-
-    logTrace "getAccessToken: POST https://api.amazon.com/auth/token"
-    logTrace "getAccessToken: body=${bodyStr}"
-
-    try {
-        httpPost([
-            uri    : "https://api.amazon.com/auth/token",
-            headers: [
-                "Content-Type"               : "application/x-www-form-urlencoded",
-                "x-amzn-identity-auth-domain": "api.amazon.com",
-                "User-Agent"                 : "AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone"
-            ],
-            body   : bodyStr
-        ]) { resp ->
-            logDebug "getAccessToken: response status=${resp.status}"
-            logTrace "getAccessToken: response headers=${resp.headers?.collect { "${it.name}: ${it.value}" }?.join(' | ')}"
-            logTrace "getAccessToken: response body=${resp.data}"
-            if (resp.status == 200) {
-                result = resp.data?.access_token
-                logDebug "getAccessToken: token obtained, length=${result?.length()}"
-            } else {
-                log.error "AlexaManager: getAccessToken HTTP ${resp.status}"
-                logDebug "getAccessToken: error response body=${resp.data}"
-            }
-        }
-    } catch (Exception e) {
-        log.error "AlexaManager: getAccessToken exception — ${e.message}"
-        logTrace "getAccessToken: full exception=${e}"
-    }
-    return result
-}
-
-private Map exchangeForCookies(String accessToken) {
+private Map exchangeForCookies() {
     def domain   = amazonDomain ?: "amazon.com"
     def list     = [], csrf = null
-    def bodyStr  = "di.os.name=android&app_name=Amazon%20Alexa&di.hw.version=phone" +
-                   "&di.sdk.version=6.12.4&di.os.version=22" +
-                   "&source_token=${URLEncoder.encode(accessToken, 'UTF-8')}" +
-                   "&requested_token_type=auth_cookies&domain=.${domain}&source_token_type=access_token"
+    def bodyStr  = "di.os.name=iOS&app_name=Amazon%20Alexa&app_version=2.2.651540.0" +
+                   "&di.hw.version=iPhone&di.sdk.version=6.12.4&di.os.version=16.6" +
+                   "&source_token=${URLEncoder.encode(refreshToken.trim(), 'UTF-8')}" +
+                   "&requested_token_type=auth_cookies&domain=.${domain}&source_token_type=refresh_token"
     def url      = "https://www.${domain}/ap/exchangetoken/cookies"
 
     logTrace "exchangeForCookies: POST ${url}"
@@ -631,8 +585,12 @@ private Map exchangeForCookies(String accessToken) {
             uri            : url,
             headers        : [
                 "Content-Type"               : "application/x-www-form-urlencoded",
-                "x-amzn-identity-auth-domain": "api.amazon.com",
-                "User-Agent"                 : "AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone"
+                "x-amzn-identity-auth-domain": "api.${domain}",
+                "User-Agent"                 : "AmazonWebView/Amazon Alexa/2.2.651540.0/iOS/16.6/iPhone",
+                "Accept-Language"            : "en-US",
+                "Accept-Charset"             : "utf-8",
+                "Connection"                 : "keep-alive",
+                "Accept"                     : "*/*"
             ],
             body           : bodyStr,
             followRedirects: true
