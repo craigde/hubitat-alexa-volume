@@ -74,8 +74,15 @@ def mainPage() {
             input "addController", "button", title: "+ Add controller"
         }
 
-        section() {
-            input "logEnable", "bool", title: "Debug logging", defaultValue: false
+        section("<b>Logging</b>") {
+            input "logLevel",
+                  "enum",
+                  title      : "Log level",
+                  options    : ["0":"Off",
+                                "1":"Info",
+                                "2":"Debug",
+                                "3":"Trace (verbose — logs everything including tokens and cookies)"],
+                  defaultValue: "1"
         }
     }
 }
@@ -91,23 +98,28 @@ def credentialsPage() {
                       "<a href='https://github.com/adn77/alexa-cookie-cli/releases'>github.com/adn77/alexa-cookie-cli/releases</a><br>" +
                       "2. Run from a terminal — do not double-click<br>" +
                       "3. Open <b>http://127.0.0.1:8080</b> and log in to Amazon<br>" +
-                      "4. Copy the <code>Atnr|...</code> token from the terminal"
+                      "4. Copy the <code>Atnr|...</code> token from the terminal output"
         }
 
         section("<b>Credentials</b>") {
-            input "refreshToken",  "password",
-                  title: "Amazon refresh token", description: "Paste the full Atnr|... string",
-                  required: true
+            // Using "text" not "password" so the token is visible for debugging
+            input "refreshToken",
+                  "text",
+                  title      : "Amazon refresh token",
+                  description: "Paste the full Atnr|... string",
+                  required   : true
 
-            input "amazonDomain",  "enum",
-                  title: "Amazon domain",
-                  options: ["amazon.com","amazon.co.uk","amazon.de","amazon.com.au","amazon.ca"],
-                  defaultValue: "amazon.com", required: true
+            input "amazonDomain",
+                  "enum",
+                  title       : "Amazon domain",
+                  options     : ["amazon.com","amazon.co.uk","amazon.de","amazon.com.au","amazon.ca"],
+                  defaultValue: "amazon.com",
+                  required    : true
 
             input "connectBtn", "button", title: "Connect to Amazon"
         }
 
-        section() {
+        section("<b>Status</b>") {
             def st = state.authStatus ?: "Not connected"
             paragraph st == "Connected"
                 ? "<span style='color:#2a9d8f;font-weight:500'>● ${st}</span>"
@@ -115,6 +127,18 @@ def credentialsPage() {
             if (state.echoDevices) {
                 paragraph "Found <b>${state.echoDevices.size()}</b> Echo device(s) — go to Echo devices to configure them."
             }
+            if (state.lastAuthError) {
+                paragraph "<small style='color:#e76f51'>Last error: ${state.lastAuthError}</small>"
+            }
+        }
+
+        section("<b>Debug info</b>") {
+            paragraph "<small>" +
+                      "Token present: ${refreshToken ? 'Yes (' + refreshToken.take(8) + '...)' : 'No'}<br>" +
+                      "Cookies present: ${state.cookies ? 'Yes (' + (state.cookies.split(';').size()) + ' cookies)' : 'No'}<br>" +
+                      "Cookie expiry: ${state.cookieExpiry ? new Date(state.cookieExpiry).toString() : 'N/A'}<br>" +
+                      "CSRF present: ${state.csrfToken ? 'Yes' : 'No'}" +
+                      "</small>"
         }
     }
 }
@@ -136,8 +160,10 @@ def devicesPage() {
             paragraph "A Hubitat device is created for each Echo you select. " +
                       "These appear on dashboards and in Rule Machine."
             input "selectedEchoSerials", "enum",
-                  title: "Echo devices", options: state.echoDevices,
-                  multiple: true, required: true
+                  title   : "Echo devices",
+                  options : state.echoDevices,
+                  multiple: true,
+                  required: true
 
             input "syncDevices", "button", title: "Create / sync devices"
         }
@@ -169,14 +195,12 @@ def controllerPage(params) {
 
         section("<b>Type</b>") {
             input "ctrl_${idx}_type", "enum",
-                  title: "Controller type",
-                  options: [rotary:"Rotary knob or button device",
-                            slider:"Slider / dimmer (0–100 level)",
+                  title  : "Controller type",
+                  options: [rotary :"Rotary knob or button device",
+                            slider :"Slider / dimmer (0–100 level)",
                             buttons:"Separate up and down buttons"],
                   required: true, submitOnChange: true
         }
-
-        // ── Rotary ───────────────────────────────────
 
         if (type == "rotary") {
             section("<b>Device</b>") {
@@ -185,18 +209,16 @@ def controllerPage(params) {
                       title: "Rotary / button device", required: true
             }
             section("<b>Button mapping</b>") {
-                input "ctrl_${idx}_upBtn",   "number", title: "Volume up button",   defaultValue: 2, range: "1..20", required: true
-                input "ctrl_${idx}_downBtn", "number", title: "Volume down button", defaultValue: 3, range: "1..20", required: true
+                input "ctrl_${idx}_upBtn",   "number", title: "Volume up button",            defaultValue: 2, range: "1..20", required: true
+                input "ctrl_${idx}_downBtn", "number", title: "Volume down button",           defaultValue: 3, range: "1..20", required: true
                 input "ctrl_${idx}_muteBtn", "number", title: "Mute toggle button (optional)", range: "1..20", required: false
-                input "ctrl_${idx}_step",    "number", title: "Volume step per click", defaultValue: 5, range: "1..20", required: true
+                input "ctrl_${idx}_step",    "number", title: "Volume step per click",        defaultValue: 5, range: "1..20", required: true
             }
             section("<b>Center button extras (optional)</b>") {
                 input "ctrl_${idx}_dblTap", "enum", title: "Double-tap action", options: volumeActionOptions(), defaultValue: "none"
                 input "ctrl_${idx}_hold",   "enum", title: "Hold action",       options: volumeActionOptions(), defaultValue: "none"
             }
         }
-
-        // ── Slider ───────────────────────────────────
 
         if (type == "slider") {
             section("<b>Device</b>") {
@@ -214,20 +236,18 @@ def controllerPage(params) {
             }
         }
 
-        // ── Up / down buttons ─────────────────────────
-
         if (type == "buttons") {
             section("<b>Up button</b>") {
-                input "ctrl_${idx}_upDev",    "capability.pushableButton", title: "Up device", required: true
-                input "ctrl_${idx}_upBtnNum", "number", title: "Button number", defaultValue: 1, range: "1..20", required: true
+                input "ctrl_${idx}_upDev",    "capability.pushableButton", title: "Up device",     required: true
+                input "ctrl_${idx}_upBtnNum", "number",                    title: "Button number", defaultValue: 1, range: "1..20", required: true
             }
             section("<b>Down button</b>") {
                 paragraph "Can be the same device as the up button — just use a different button number."
-                input "ctrl_${idx}_downDev",    "capability.pushableButton", title: "Down device", required: true
-                input "ctrl_${idx}_downBtnNum", "number", title: "Button number", defaultValue: 2, range: "1..20", required: true
+                input "ctrl_${idx}_downDev",    "capability.pushableButton", title: "Down device",   required: true
+                input "ctrl_${idx}_downBtnNum", "number",                    title: "Button number", defaultValue: 2, range: "1..20", required: true
             }
             section("<b>Mute button (optional)</b>") {
-                input "ctrl_${idx}_btnMuteDev",    "capability.pushableButton", title: "Mute device", required: false
+                input "ctrl_${idx}_btnMuteDev", "capability.pushableButton", title: "Mute device", required: false
                 if (settings["ctrl_${idx}_btnMuteDev"]) {
                     input "ctrl_${idx}_btnMuteBtnNum", "number", title: "Button number", defaultValue: 3, range: "1..20"
                 }
@@ -237,8 +257,6 @@ def controllerPage(params) {
                       defaultValue: 5, range: "1..20", required: true
             }
         }
-
-        // ── Targets ──────────────────────────────────
 
         section("<b>Target Echo devices</b>") {
             paragraph "All selected Echos respond simultaneously."
@@ -257,24 +275,24 @@ def controllerPage(params) {
 // -------------------------------------------------------
 
 def appButtonHandler(btn) {
+    logDebug "Button pressed: ${btn}"
     switch (btn) {
         case "connectBtn":
-            state.authStatus = "Connecting..."
+            state.authStatus    = "Connecting..."
+            state.lastAuthError = null
             if (authenticate()) fetchEchoDevices()
             break
-
         case "syncDevices":
             syncChildDevices()
             break
-
         case "addController":
             def ids    = state.controllerIds ?: []
             def newIdx = ids ? (ids.max() + 1) : 0
             ids << newIdx
             state.controllerIds = ids
             state.editingIdx    = newIdx
+            logInfo "Added controller ${newIdx}"
             break
-
         default:
             if (btn ==~ /ctrl_(\d+)_remove/) {
                 removeController((btn =~ /ctrl_(\d+)_remove/)[0][1].toInteger())
@@ -286,22 +304,17 @@ def appButtonHandler(btn) {
 // LIFECYCLE
 // -------------------------------------------------------
 
-def installed() {
-    log.info "Alexa Volume Manager installed"
-    initialize()
-}
+def installed() { logInfo "Installed"; initialize() }
 
-def updated() {
-    log.info "Alexa Volume Manager updated"
-    unsubscribe()
-    initialize()
-}
+def updated() { logInfo "Updated"; unsubscribe(); initialize() }
 
 def uninstalled() {
+    logInfo "Uninstalled — removing child devices"
     getChildDevices().each { deleteChildDevice(it.deviceNetworkId) }
 }
 
 def initialize() {
+    logInfo "Initializing"
     if (refreshToken && state.authStatus != "Connected") authenticate()
     if (selectedEchoSerials) syncChildDevices()
     (state.controllerIds ?: []).each { subscribeController(it) }
@@ -314,7 +327,8 @@ def initialize() {
 
 private subscribeController(idx) {
     def type = settings["ctrl_${idx}_type"]
-    if (!type) return
+    if (!type) { logDebug "Controller ${idx}: no type set, skipping"; return }
+    logDebug "Subscribing controller ${idx} (${type})"
 
     switch (type) {
         case "rotary":
@@ -323,24 +337,25 @@ private subscribeController(idx) {
                 subscribe(dev, "pushed",       pushHandler)
                 subscribe(dev, "doubleTapped", doubleTapHandler)
                 subscribe(dev, "held",         holdHandler)
+                logDebug "Controller ${idx}: subscribed to '${dev.displayName}' — pushed / doubleTapped / held"
+            } else {
+                logDebug "Controller ${idx}: no device configured"
             }
             break
-
         case "slider":
-            def dev = settings["ctrl_${idx}_sliderDevice"]
-            if (dev) subscribe(dev, "level", levelHandler)
+            def dev  = settings["ctrl_${idx}_sliderDevice"]
             def mDev = settings["ctrl_${idx}_muteDev"]
-            if (mDev) subscribe(mDev, "pushed", pushHandler)
+            if (dev)  { subscribe(dev,  "level",  levelHandler); logDebug "Controller ${idx}: subscribed slider '${dev.displayName}'" }
+            if (mDev) { subscribe(mDev, "pushed", pushHandler);  logDebug "Controller ${idx}: subscribed mute button '${mDev.displayName}'" }
             break
-
         case "buttons":
             def upDev   = settings["ctrl_${idx}_upDev"]
             def downDev = settings["ctrl_${idx}_downDev"]
             def mDev    = settings["ctrl_${idx}_btnMuteDev"]
-            if (upDev)                                  subscribe(upDev,   "pushed", pushHandler)
-            if (downDev && downDev.id != upDev?.id)    subscribe(downDev, "pushed", pushHandler)
+            if (upDev)                               { subscribe(upDev,   "pushed", pushHandler); logDebug "Controller ${idx}: subscribed up '${upDev.displayName}'" }
+            if (downDev && downDev.id != upDev?.id) { subscribe(downDev, "pushed", pushHandler); logDebug "Controller ${idx}: subscribed down '${downDev.displayName}'" }
             if (mDev && mDev.id != upDev?.id
-                     && mDev.id != downDev?.id)        subscribe(mDev,    "pushed", pushHandler)
+                     && mDev.id != downDev?.id)     { subscribe(mDev,    "pushed", pushHandler); logDebug "Controller ${idx}: subscribed mute '${mDev.displayName}'" }
             break
     }
 }
@@ -352,6 +367,7 @@ private subscribeController(idx) {
 def pushHandler(evt) {
     def devId = evt.deviceId
     def btn   = evt.value?.toInteger()
+    logDebug "pushHandler: deviceId=${devId} button=${btn}"
 
     (state.controllerIds ?: []).each { idx ->
         def type    = settings["ctrl_${idx}_type"]
@@ -361,16 +377,21 @@ def pushHandler(evt) {
         switch (type) {
             case "rotary":
                 if (devId != settings["ctrl_${idx}_device"]?.id) return
-                if      (btn == (settings["ctrl_${idx}_upBtn"]?.toInteger()   ?: 2)) targets?.each { it.volumeUp(step) }
-                else if (btn == (settings["ctrl_${idx}_downBtn"]?.toInteger() ?: 3)) targets?.each { it.volumeDown(step) }
-                else if (settings["ctrl_${idx}_muteBtn"] &&
-                         btn == settings["ctrl_${idx}_muteBtn"].toInteger())         targets?.each { it.muteToggle() }
+                def upBtn   = settings["ctrl_${idx}_upBtn"]?.toInteger()   ?: 2
+                def downBtn = settings["ctrl_${idx}_downBtn"]?.toInteger() ?: 3
+                def muteBtn = settings["ctrl_${idx}_muteBtn"]?.toInteger()
+                logTrace "Controller ${idx} rotary: btn=${btn} upBtn=${upBtn} downBtn=${downBtn} muteBtn=${muteBtn} step=${step}"
+                if      (btn == upBtn)              { logInfo "Controller ${idx}: volume up (step=${step})";   targets?.each { it.volumeUp(step) } }
+                else if (btn == downBtn)            { logInfo "Controller ${idx}: volume down (step=${step})"; targets?.each { it.volumeDown(step) } }
+                else if (muteBtn && btn == muteBtn) { logInfo "Controller ${idx}: mute toggle";               targets?.each { it.muteToggle() } }
+                else                               { logTrace "Controller ${idx}: button ${btn} not mapped — ignoring" }
                 break
 
             case "slider":
-                def mDev = settings["ctrl_${idx}_muteDev"]
-                if (devId == mDev?.id &&
-                    btn == (settings["ctrl_${idx}_muteBtnNum"]?.toInteger() ?: 1))   targets?.each { it.muteToggle() }
+                def mDev    = settings["ctrl_${idx}_muteDev"]
+                def mBtnNum = settings["ctrl_${idx}_muteBtnNum"]?.toInteger() ?: 1
+                logTrace "Controller ${idx} slider mute check: devId=${devId} muteDev=${mDev?.id} btn=${btn} muteBtnNum=${mBtnNum}"
+                if (devId == mDev?.id && btn == mBtnNum) { logInfo "Controller ${idx}: mute toggle"; targets?.each { it.muteToggle() } }
                 break
 
             case "buttons":
@@ -380,9 +401,10 @@ def pushHandler(evt) {
                 def upBtnNum   = settings["ctrl_${idx}_upBtnNum"]?.toInteger()      ?: 1
                 def downBtnNum = settings["ctrl_${idx}_downBtnNum"]?.toInteger()    ?: 2
                 def mBtnNum    = settings["ctrl_${idx}_btnMuteBtnNum"]?.toInteger() ?: 3
-                if      (devId == upDev?.id   && btn == upBtnNum)   targets?.each { it.volumeUp(step) }
-                else if (devId == downDev?.id && btn == downBtnNum) targets?.each { it.volumeDown(step) }
-                else if (mDev && devId == mDev?.id && btn == mBtnNum) targets?.each { it.muteToggle() }
+                logTrace "Controller ${idx} buttons: devId=${devId} btn=${btn} up=${upDev?.id}:${upBtnNum} down=${downDev?.id}:${downBtnNum} mute=${mDev?.id}:${mBtnNum}"
+                if      (devId == upDev?.id   && btn == upBtnNum)     { logInfo "Controller ${idx}: volume up (step=${step})";   targets?.each { it.volumeUp(step) } }
+                else if (devId == downDev?.id && btn == downBtnNum)   { logInfo "Controller ${idx}: volume down (step=${step})"; targets?.each { it.volumeDown(step) } }
+                else if (mDev && devId == mDev?.id && btn == mBtnNum) { logInfo "Controller ${idx}: mute toggle";               targets?.each { it.muteToggle() } }
                 break
         }
     }
@@ -391,9 +413,11 @@ def pushHandler(evt) {
 def levelHandler(evt) {
     def devId = evt.deviceId
     def level = evt.value?.toInteger()
+    logDebug "levelHandler: deviceId=${devId} level=${level}"
     (state.controllerIds ?: []).each { idx ->
         if (settings["ctrl_${idx}_type"] != "slider") return
         if (devId != settings["ctrl_${idx}_sliderDevice"]?.id) return
+        logInfo "Controller ${idx}: setVolume(${level})"
         settings["ctrl_${idx}_targets"]?.each { it.setVolume(level) }
     }
 }
@@ -401,20 +425,26 @@ def levelHandler(evt) {
 def doubleTapHandler(evt) {
     if (evt.value?.toInteger() != 1) return
     def devId = evt.deviceId
+    logDebug "doubleTapHandler: deviceId=${devId}"
     (state.controllerIds ?: []).each { idx ->
         if (settings["ctrl_${idx}_type"] != "rotary") return
         if (devId != settings["ctrl_${idx}_device"]?.id) return
-        executeAction(idx, settings["ctrl_${idx}_dblTap"] ?: "none")
+        def action = settings["ctrl_${idx}_dblTap"] ?: "none"
+        logInfo "Controller ${idx}: double-tap → ${action}"
+        executeAction(idx, action)
     }
 }
 
 def holdHandler(evt) {
     if (evt.value?.toInteger() != 1) return
     def devId = evt.deviceId
+    logDebug "holdHandler: deviceId=${devId}"
     (state.controllerIds ?: []).each { idx ->
         if (settings["ctrl_${idx}_type"] != "rotary") return
         if (devId != settings["ctrl_${idx}_device"]?.id) return
-        executeAction(idx, settings["ctrl_${idx}_hold"] ?: "none")
+        def action = settings["ctrl_${idx}_hold"] ?: "none"
+        logInfo "Controller ${idx}: hold → ${action}"
+        executeAction(idx, action)
     }
 }
 
@@ -424,30 +454,43 @@ def holdHandler(evt) {
 
 def setVolume(childDevice, level) {
     level = Math.max(0, Math.min(100, level?.toInteger() ?: 50))
+    logDebug "setVolume: ${childDevice.label} → ${level}"
     if (sendAlexaCommand(childDevice, [type:"VolumeLevelCommand", volumeLevel:level, contentFocusClientId:null])) {
         childDevice.sendEvent(name: "volume", value: level, unit: "%")
+        logInfo "Volume set: ${childDevice.label} = ${level}%"
     }
 }
 
 def volumeUp(childDevice, step) {
-    setVolume(childDevice, (childDevice.currentValue("volume")?.toInteger() ?: 50) + (step?.toInteger() ?: 5))
+    def current = childDevice.currentValue("volume")?.toInteger() ?: 50
+    logDebug "volumeUp: ${childDevice.label} current=${current} step=${step}"
+    setVolume(childDevice, current + (step?.toInteger() ?: 5))
 }
 
 def volumeDown(childDevice, step) {
-    setVolume(childDevice, (childDevice.currentValue("volume")?.toInteger() ?: 50) - (step?.toInteger() ?: 5))
+    def current = childDevice.currentValue("volume")?.toInteger() ?: 50
+    logDebug "volumeDown: ${childDevice.label} current=${current} step=${step}"
+    setVolume(childDevice, current - (step?.toInteger() ?: 5))
 }
 
 def mute(childDevice) {
-    if (sendAlexaCommand(childDevice, [type:"VolumeMuteCommand", muted:true, contentFocusClientId:null]))
+    logDebug "mute: ${childDevice.label}"
+    if (sendAlexaCommand(childDevice, [type:"VolumeMuteCommand", muted:true, contentFocusClientId:null])) {
         childDevice.sendEvent(name: "mute", value: "muted")
+        logInfo "Muted: ${childDevice.label}"
+    }
 }
 
 def unmute(childDevice) {
-    if (sendAlexaCommand(childDevice, [type:"VolumeMuteCommand", muted:false, contentFocusClientId:null]))
+    logDebug "unmute: ${childDevice.label}"
+    if (sendAlexaCommand(childDevice, [type:"VolumeMuteCommand", muted:false, contentFocusClientId:null])) {
         childDevice.sendEvent(name: "mute", value: "unmuted")
+        logInfo "Unmuted: ${childDevice.label}"
+    }
 }
 
 def muteToggle(childDevice) {
+    logDebug "muteToggle: ${childDevice.label} current=${childDevice.currentValue('mute')}"
     childDevice.currentValue("mute") == "muted" ? unmute(childDevice) : mute(childDevice)
 }
 
@@ -457,22 +500,40 @@ def muteToggle(childDevice) {
 
 private boolean sendAlexaCommand(childDevice, Map body) {
     ensureAuthenticated()
+    def serial   = childDevice.getDataValue("serialNumber")
+    def devType  = childDevice.getDataValue("deviceType")
+    def domain   = amazonDomain ?: "amazon.com"
+    def url      = "https://alexa.${domain}/api/np/command?deviceSerialNumber=${serial}&deviceType=${devType}"
+    def bodyJson = groovy.json.JsonOutput.toJson(body)
+
+    logTrace "sendAlexaCommand: url=${url}"
+    logTrace "sendAlexaCommand: body=${bodyJson}"
+    logTrace "sendAlexaCommand: cookieLength=${state.cookies?.length()} csrfPresent=${state.csrfToken ? true : false}"
+
     def success = false
     try {
         httpPost([
-            uri    : "https://alexa.${amazonDomain ?: 'amazon.com'}/api/np/command" +
-                     "?deviceSerialNumber=${childDevice.getDataValue('serialNumber')}" +
-                     "&deviceType=${childDevice.getDataValue('deviceType')}",
+            uri    : url,
             headers: alexaHeaders() + ["Content-Type":"application/json"],
-            body   : groovy.json.JsonOutput.toJson(body)
+            body   : bodyJson
         ]) { resp ->
-            if (resp.status in [200, 204]) { success = true }
-            else {
-                log.error "${childDevice.label}: command HTTP ${resp.status}"
-                if (resp.status in [401, 403]) authenticate()
+            logTrace "sendAlexaCommand: response status=${resp.status}"
+            logTrace "sendAlexaCommand: response headers=${resp.headers?.collect { "${it.name}: ${it.value}" }?.join(' | ')}"
+            if (resp.status in [200, 204]) {
+                success = true
+            } else {
+                log.error "AlexaManager: command failed for ${childDevice.label} — HTTP ${resp.status}"
+                logDebug "sendAlexaCommand: error body=${resp.data}"
+                if (resp.status in [401, 403]) {
+                    logInfo "Session rejected (${resp.status}) — re-authenticating"
+                    authenticate()
+                }
             }
         }
-    } catch (Exception e) { log.error "sendAlexaCommand: ${e.message}" }
+    } catch (Exception e) {
+        log.error "AlexaManager: sendAlexaCommand exception — ${e.message}"
+        logTrace "sendAlexaCommand: full exception=${e}"
+    }
     return success
 }
 
@@ -481,66 +542,161 @@ private boolean sendAlexaCommand(childDevice, Map body) {
 // -------------------------------------------------------
 
 private boolean authenticate() {
-    if (!refreshToken) { state.authStatus = "Error: no token"; return false }
-    logDebug "Authenticating..."
+    logInfo "Starting authentication"
+    if (!refreshToken) {
+        log.error "AlexaManager: no refresh token configured"
+        state.authStatus = "Error: no token configured"
+        return false
+    }
+
+    logDebug "authenticate: token starts with '${refreshToken.take(12)}...'"
+    logDebug "authenticate: domain=${amazonDomain}"
+
     def accessToken = getAccessToken()
-    if (!accessToken) { state.authStatus = "Error: access token failed"; return false }
+    if (!accessToken) {
+        state.authStatus    = "Error: access token failed"
+        state.lastAuthError = "getAccessToken returned null — check token is valid and try reconnecting"
+        return false
+    }
+
     def cookies = exchangeForCookies(accessToken)
-    if (!cookies)     { state.authStatus = "Error: cookie exchange failed"; return false }
-    state.cookies      = cookies.cookieString
-    state.csrfToken    = cookies.csrf
-    state.cookieExpiry = now() + (12 * 3600 * 1000L)
-    state.authStatus   = "Connected"
-    log.info "Alexa Volume Manager: authenticated"
+    if (!cookies) {
+        state.authStatus    = "Error: cookie exchange failed"
+        state.lastAuthError = "exchangeForCookies returned null — set log level to Trace and reconnect for full detail"
+        return false
+    }
+
+    state.cookies       = cookies.cookieString
+    state.csrfToken     = cookies.csrf
+    state.cookieExpiry  = now() + (12 * 3600 * 1000L)
+    state.authStatus    = "Connected"
+    state.lastAuthError = null
+    logInfo "Authenticated — ${cookies.cookieString.split(';').size()} cookies captured, CSRF present: ${cookies.csrf ? 'yes' : 'no'}"
     return true
 }
 
 private String getAccessToken() {
-    def result = null
+    def result  = null
+    def bodyStr = "app_name=Amazon%20Alexa&app_version=2.2.223830.0&di.sdk.version=6.12.4" +
+                  "&source_token=${URLEncoder.encode(refreshToken.trim(), 'UTF-8')}" +
+                  "&package_name=com.amazon.echo&di.hw.version=phone&platform=android" +
+                  "&requested_token_type=access_token&source_token_type=refresh_token" +
+                  "&di.os.name=android&di.os.version=22&current_version=6.12.4"
+
+    logTrace "getAccessToken: POST https://api.amazon.com/auth/token"
+    logTrace "getAccessToken: body=${bodyStr}"
+
     try {
         httpPost([
             uri    : "https://api.amazon.com/auth/token",
-            headers: ["Content-Type":"application/x-www-form-urlencoded",
-                      "x-amzn-identity-auth-domain":"api.amazon.com",
-                      "User-Agent":"AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone"],
-            body   : "app_name=Amazon%20Alexa&app_version=2.2.223830.0&di.sdk.version=6.12.4" +
-                     "&source_token=${URLEncoder.encode(refreshToken.trim(),'UTF-8')}" +
-                     "&package_name=com.amazon.echo&di.hw.version=phone&platform=android" +
-                     "&requested_token_type=access_token&source_token_type=refresh_token" +
-                     "&di.os.name=android&di.os.version=22&current_version=6.12.4"
-        ]) { resp -> if (resp.status == 200) result = resp.data?.access_token }
-    } catch (Exception e) { log.error "getAccessToken: ${e.message}" }
+            headers: [
+                "Content-Type"               : "application/x-www-form-urlencoded",
+                "x-amzn-identity-auth-domain": "api.amazon.com",
+                "User-Agent"                 : "AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone"
+            ],
+            body   : bodyStr
+        ]) { resp ->
+            logDebug "getAccessToken: response status=${resp.status}"
+            logTrace "getAccessToken: response headers=${resp.headers?.collect { "${it.name}: ${it.value}" }?.join(' | ')}"
+            logTrace "getAccessToken: response body=${resp.data}"
+            if (resp.status == 200) {
+                result = resp.data?.access_token
+                logDebug "getAccessToken: token obtained, length=${result?.length()}"
+            } else {
+                log.error "AlexaManager: getAccessToken HTTP ${resp.status}"
+                logDebug "getAccessToken: error response body=${resp.data}"
+            }
+        }
+    } catch (Exception e) {
+        log.error "AlexaManager: getAccessToken exception — ${e.message}"
+        logTrace "getAccessToken: full exception=${e}"
+    }
     return result
 }
 
 private Map exchangeForCookies(String accessToken) {
-    def domain = amazonDomain ?: "amazon.com"
-    def list   = [], csrf = null
+    def domain   = amazonDomain ?: "amazon.com"
+    def list     = [], csrf = null
+    def bodyMap  = [
+        "requested_token_type": "auth_cookies",
+        "domain"              : ".${domain}",
+        "source_token_type"   : "access_token",
+        "source_token"        : accessToken
+    ]
+    def bodyJson = groovy.json.JsonOutput.toJson(bodyMap)
+    def url      = "https://www.${domain}/ap/exchangetoken/cookies"
+
+    logTrace "exchangeForCookies: POST ${url}"
+    logTrace "exchangeForCookies: body=${bodyJson}"
+
     try {
         httpPost([
-            uri    : "https://www.${domain}/ap/exchangetoken/cookies",
-            headers: ["Content-Type":"application/x-www-form-urlencoded",
-                      "x-amzn-identity-auth-domain":"api.amazon.com",
-                      "User-Agent":"AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone"],
-            body   : "di.os.name=android&app_name=Amazon%20Alexa&di.hw.version=phone" +
-                     "&di.sdk.version=6.12.4&di.os.version=22" +
-                     "&source_token=${URLEncoder.encode(accessToken,'UTF-8')}" +
-                     "&requested_token_type=auth_cookies&domain=.${domain}&source_token_type=access_token"
+            uri            : url,
+            headers        : [
+                "Content-Type"               : "application/json",
+                "x-amzn-identity-auth-domain": "api.amazon.com",
+                "User-Agent"                 : "AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone",
+                "Accept"                     : "application/json"
+            ],
+            body           : bodyJson,
+            followRedirects: true
         ]) { resp ->
+            logDebug "exchangeForCookies: response status=${resp.status}"
+            logTrace "exchangeForCookies: response headers=${resp.headers?.collect { "${it.name}: ${it.value}" }?.join(' | ')}"
+            logTrace "exchangeForCookies: response body=${resp.data}"
+
+            // Path 1 — cookies in set-cookie response headers
             resp.headers.each { h ->
                 if (h.name?.toLowerCase() == "set-cookie") {
+                    logTrace "exchangeForCookies: set-cookie header=${h.value}"
                     def nv = h.value?.split(";")?.getAt(0)?.trim()
-                    if (nv) { list << nv; if (nv.startsWith("csrf=")) csrf = nv.replace("csrf=","") }
+                    if (nv) {
+                        list << nv
+                        if (nv.startsWith("csrf=")) csrf = nv.replace("csrf=", "")
+                    }
                 }
             }
+            logDebug "exchangeForCookies: ${list.size()} cookies found in response headers"
+
+            // Path 2 — cookies inside JSON response body (some Amazon versions)
+            if (list.isEmpty() && resp.data) {
+                logDebug "exchangeForCookies: no header cookies — checking JSON body"
+                def cookies = resp.data?.response?.tokens?.cookies
+                logTrace "exchangeForCookies: body cookies map=${cookies}"
+                cookies?.each { domainKey, cookieList ->
+                    cookieList?.each { c ->
+                        def nv = "${c.Name}=${c.Value}"
+                        list << nv
+                        logTrace "exchangeForCookies: body cookie name=${c.Name}"
+                        if (c.Name == "csrf") csrf = c.Value
+                    }
+                }
+                logDebug "exchangeForCookies: ${list.size()} cookies found in JSON body"
+            }
         }
-    } catch (Exception e) { log.error "exchangeForCookies: ${e.message}"; return null }
-    if (list.isEmpty()) { log.error "No cookies returned"; return null }
+    } catch (Exception e) {
+        log.error "AlexaManager: exchangeForCookies exception — ${e.message}"
+        logTrace "exchangeForCookies: full exception=${e}"
+        return null
+    }
+
+    if (list.isEmpty()) {
+        log.error "AlexaManager: exchangeForCookies — no cookies in headers or body"
+        return null
+    }
+
+    logDebug "exchangeForCookies: total=${list.size()} cookies, csrf=${csrf ? 'present' : 'missing'}"
+    logTrace "exchangeForCookies: cookie names=${list.collect { it.split('=')[0] }.join(', ')}"
     return [cookieString: list.join("; "), csrf: csrf ?: ""]
 }
 
 private ensureAuthenticated() {
-    if (!state.cookies || !state.cookieExpiry || now() > state.cookieExpiry) authenticate()
+    if (!state.cookies || !state.cookieExpiry || now() > state.cookieExpiry) {
+        logDebug "ensureAuthenticated: session missing or expired — re-authenticating"
+        authenticate()
+    } else {
+        logTrace "ensureAuthenticated: session valid, expires ${new Date(state.cookieExpiry)}"
+    }
 }
 
 // -------------------------------------------------------
@@ -549,28 +705,43 @@ private ensureAuthenticated() {
 
 private fetchEchoDevices() {
     ensureAuthenticated()
+    def url = "https://alexa.${amazonDomain ?: 'amazon.com'}/api/devices-v2/device?raw=false"
+    logDebug "fetchEchoDevices: GET ${url}"
+
     try {
-        httpGet([uri:"https://alexa.${amazonDomain ?: 'amazon.com'}/api/devices-v2/device?raw=false",
-                 headers: alexaHeaders()]) { resp ->
+        httpGet([uri: url, headers: alexaHeaders()]) { resp ->
+            logDebug "fetchEchoDevices: response status=${resp.status}"
+            logTrace "fetchEchoDevices: response body=${resp.data}"
             if (resp.status == 200) {
                 def echoMap = [:], typeMap = [:]
                 resp.data?.devices?.each { d ->
+                    logTrace "fetchEchoDevices: checking device='${d.accountName}' family=${d.deviceFamily} caps=${d.capabilities?.collect { it.interfaceName }}"
                     def canPlay = d.capabilities?.any { it.interfaceName in
                         ["VOLUME_SETTING","AUDIO_PLAYER","NPE_ALERTS_VOLUME"] }
                     if (canPlay || d.deviceFamily in ["ECHO","KNIGHT","TABLET"]) {
                         echoMap[d.serialNumber] = d.accountName
                         typeMap[d.serialNumber] = d.deviceType
+                        logDebug "fetchEchoDevices: accepted '${d.accountName}' (${d.serialNumber})"
+                    } else {
+                        logTrace "fetchEchoDevices: skipped '${d.accountName}' — not a volume-capable Echo"
                     }
                 }
                 state.echoDevices     = echoMap
                 state.echoDeviceTypes = typeMap
-                log.info "Found ${echoMap.size()} Echo device(s)"
+                logInfo "Found ${echoMap.size()} Echo device(s): ${echoMap.values().join(', ')}"
+            } else {
+                log.error "AlexaManager: fetchEchoDevices HTTP ${resp.status}"
+                logDebug "fetchEchoDevices: error body=${resp.data}"
             }
         }
-    } catch (Exception e) { log.error "fetchEchoDevices: ${e.message}" }
+    } catch (Exception e) {
+        log.error "AlexaManager: fetchEchoDevices exception — ${e.message}"
+        logTrace "fetchEchoDevices: full exception=${e}"
+    }
 }
 
 private syncChildDevices() {
+    logDebug "syncChildDevices: selected serials=${selectedEchoSerials}"
     selectedEchoSerials?.each { serial ->
         if (!getChildDevice(serial)) {
             def name = state.echoDevices?.get(serial) ?: serial
@@ -580,23 +751,29 @@ private syncChildDevices() {
                 child.updateDataValue("serialNumber", serial)
                 child.updateDataValue("deviceType",   state.echoDeviceTypes?.get(serial) ?: "")
                 child.sendEvent(name: "echoDevice", value: name)
-                log.info "Created child device: Alexa — ${name}"
-            } catch (Exception e) { log.error "addChildDevice ${serial}: ${e.message}" }
+                logInfo "Created child device: Alexa — ${name} (serial=${serial})"
+            } catch (Exception e) {
+                log.error "AlexaManager: addChildDevice failed for ${serial} — ${e.message}"
+            }
+        } else {
+            logDebug "syncChildDevices: ${serial} already exists — skipping"
         }
     }
     getChildDevices().each { child ->
-        if (!selectedEchoSerials?.contains(child.deviceNetworkId))
+        if (!selectedEchoSerials?.contains(child.deviceNetworkId)) {
+            logInfo "Removing deselected child device: ${child.label}"
             deleteChildDevice(child.deviceNetworkId)
+        }
     }
 }
 
 private removeController(int idx) {
+    logInfo "Removing controller ${idx}"
     unsubscribe()
     state.controllerIds = (state.controllerIds ?: []) - [idx]
     ["name","type","device","upBtn","downBtn","muteBtn","step","dblTap","hold",
      "sliderDevice","muteDev","muteBtnNum","upDev","upBtnNum","downDev","downBtnNum",
      "btnMuteDev","btnMuteBtnNum","targets"].each { app.removeSetting("ctrl_${idx}_${it}") }
-    log.info "Removed controller ${idx}"
     initialize()
 }
 
@@ -605,11 +782,15 @@ private removeController(int idx) {
 // -------------------------------------------------------
 
 private Map alexaHeaders() {
-    ["Cookie"    : state.cookies   ?: "",
-     "csrf"      : state.csrfToken ?: "",
-     "Accept"    : "application/json; charset=UTF-8",
-     "User-Agent": "AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone",
-     "Referer"   : "https://alexa.${amazonDomain ?: 'amazon.com'}/spa/index.html"]
+    def h = [
+        "Cookie"    : state.cookies   ?: "",
+        "csrf"      : state.csrfToken ?: "",
+        "Accept"    : "application/json; charset=UTF-8",
+        "User-Agent": "AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone",
+        "Referer"   : "https://alexa.${amazonDomain ?: 'amazon.com'}/spa/index.html"
+    ]
+    logTrace "alexaHeaders: csrf=${h.csrf ? 'present' : 'missing'} cookieLength=${h.Cookie?.length()}"
+    return h
 }
 
 private Map volumeActionOptions() {
@@ -619,6 +800,7 @@ private Map volumeActionOptions() {
 
 private executeAction(idx, String action) {
     def targets = settings["ctrl_${idx}_targets"]
+    logDebug "executeAction: idx=${idx} action=${action} targets=${targets?.size()}"
     switch (action) {
         case "mute"  : targets?.each { it.muteToggle() };  break
         case "vol0"  : targets?.each { it.setVolume(0) };  break
@@ -633,4 +815,6 @@ private String typeLabel(type) {
     ["rotary":"Rotary/button","slider":"Slider","buttons":"Up/down"][type] ?: "Not configured"
 }
 
-private logDebug(String msg) { if (logEnable) log.debug "AlexaManager: ${msg}" }
+private logInfo(String msg)  { if ((logLevel?.toInteger() ?: 1) >= 1) log.info  "AlexaManager: ${msg}" }
+private logDebug(String msg) { if ((logLevel?.toInteger() ?: 1) >= 2) log.debug "AlexaManager: ${msg}" }
+private logTrace(String msg) { if ((logLevel?.toInteger() ?: 1) >= 3) log.trace "AlexaManager: ${msg}" }
