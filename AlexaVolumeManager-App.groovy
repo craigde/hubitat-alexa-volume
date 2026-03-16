@@ -33,7 +33,6 @@ preferences {
     page(name: "credentialsPage")
     page(name: "devicesPage")
     page(name: "controllerPage")
-    page(name: "removeControllerPage")
 }
 
 // ── Main ────────────────────────────────────────────────
@@ -233,7 +232,7 @@ def controllerPage(params) {
 
     dynamicPage(name: "controllerPage",
                 title: settings["ctrl_${idx}_name"] ?: "Controller ${idx + 1}",
-                install: false, uninstall: false) {
+                install: false, uninstall: false, nextPage: "mainPage") {
 
         section("<b>Name</b>") {
             input "ctrl_${idx}_name", "text",
