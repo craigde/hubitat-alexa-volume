@@ -39,7 +39,7 @@ preferences {
 // ── Main ────────────────────────────────────────────────
 
 def mainPage() {
-    dynamicPage(name: "mainPage", title: "Alexa Volume Manager",
+    dynamicPage(name: "mainPage", title: "",
                 install: true, uninstall: true) {
 
         def connected  = state.authStatus == "Connected"
