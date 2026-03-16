@@ -41,13 +41,15 @@ def mainPage() {
     dynamicPage(name: "mainPage", title: "Alexa Volume Manager",
                 install: true, uninstall: true) {
 
-        def connected  = state.authStatus == "Connected"
-        def childCount = getChildDevices()?.size() ?: 0
-        def ctrlIds    = state.controllerIds ?: []
+        def connected    = state.authStatus == "Connected"
+        def childCount   = getChildDevices()?.size() ?: 0
+        def selectedCount = selectedEchoSerials?.size() ?: 0
+        def ctrlIds      = state.controllerIds ?: []
 
         section() {
             paragraph "<b>Amazon:</b> ${connected ? '● Connected' : '○ ' + (state.authStatus ?: 'Not connected')}<br>" +
-                      "<b>Echo devices:</b> ${childCount} configured<br>" +
+                      "<b>Echo devices:</b> ${childCount} configured" +
+                      (selectedCount > childCount ? " (${selectedCount} selected — press Done to sync)" : "") + "<br>" +
                       "<b>Controllers:</b> ${ctrlIds.size()}"
         }
 
@@ -58,7 +60,7 @@ def mainPage() {
 
             href "devicesPage",
                  title      : "Echo devices",
-                 description: childCount ? "${childCount} device(s) configured" : "Tap to select Echo devices"
+                 description: selectedCount ? "${selectedCount} selected, ${childCount} configured" : "Tap to select Echo devices"
         }
 
         section("<b>Controllers</b>") {
