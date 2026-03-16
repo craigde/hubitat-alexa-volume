@@ -71,6 +71,10 @@ def mainPage() {
                      title      : name,
                      description: "${typeLabel(type)} · ${targets?.size() ?: 0} Echo(s)",
                      params     : [idx: idx]
+                href "removeControllerPage",
+                     title      : "",
+                     description: "<small>Remove ${name}</small>",
+                     params     : [idx: idx]
             }
             input "addController", "button", title: "+ Add controller"
         }
@@ -223,14 +227,14 @@ def controllerPage(params) {
                   options: [rotary :"Rotary knob or button device",
                             slider :"Slider / dimmer (0–100 level)",
                             buttons:"Separate up and down buttons"],
-                  submitOnChange: true
+                  required: true, submitOnChange: true
         }
 
         if (type == "rotary") {
             section("<b>Device</b>") {
                 paragraph "MOES TS004F defaults: button 2 = clockwise, 3 = counter-clockwise, 1 = center press."
                 input "ctrl_${idx}_device", "capability.pushableButton",
-                      title: "Rotary / button device"
+                      title: "Rotary / button device", required: true
             }
             section("<b>Button mapping</b>") {
                 input "ctrl_${idx}_upBtn",   "number", title: "Volume up button",              defaultValue: 2, range: "1..20"
@@ -248,7 +252,7 @@ def controllerPage(params) {
             section("<b>Device</b>") {
                 paragraph "Slider level (0–100) maps directly to Echo volume."
                 input "ctrl_${idx}_sliderDevice", "capability.switchLevel",
-                      title: "Slider / dimmer device"
+                      title: "Slider / dimmer device", required: true
             }
             section("<b>Mute button (optional)</b>") {
                 input "ctrl_${idx}_muteDev", "capability.pushableButton",
@@ -262,12 +266,12 @@ def controllerPage(params) {
 
         if (type == "buttons") {
             section("<b>Up button</b>") {
-                input "ctrl_${idx}_upDev",    "capability.pushableButton", title: "Up device"
+                input "ctrl_${idx}_upDev",    "capability.pushableButton", title: "Up device",     required: true
                 input "ctrl_${idx}_upBtnNum", "number",                    title: "Button number", defaultValue: 1, range: "1..20"
             }
             section("<b>Down button</b>") {
                 paragraph "Can be the same device as the up button — just use a different button number."
-                input "ctrl_${idx}_downDev",    "capability.pushableButton", title: "Down device"
+                input "ctrl_${idx}_downDev",    "capability.pushableButton", title: "Down device",   required: true
                 input "ctrl_${idx}_downBtnNum", "number",                    title: "Button number", defaultValue: 2, range: "1..20"
             }
             section("<b>Mute button (optional)</b>") {
@@ -285,14 +289,7 @@ def controllerPage(params) {
         section("<b>Target Echo devices</b>") {
             paragraph "All selected Echos respond simultaneously."
             input "ctrl_${idx}_targets", "capability.audioVolume",
-                  title: "Echo devices to control", multiple: true
-        }
-
-        section() {
-            href "removeControllerPage",
-                 title      : "Remove this controller",
-                 description: "Permanently remove this controller",
-                 params     : [idx: idx]
+                  title: "Echo devices to control", multiple: true, required: true
         }
     }
 }
