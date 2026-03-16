@@ -227,7 +227,7 @@ def controllerPage(params) {
                   options: [rotary :"Rotary knob or button device",
                             slider :"Slider / dimmer (0–100 level)",
                             buttons:"Separate up and down buttons"],
-                  required: true, submitOnChange: true
+                  submitOnChange: true
         }
 
         if (type == "rotary") {
@@ -286,10 +286,12 @@ def controllerPage(params) {
             }
         }
 
-        section("<b>Target Echo devices</b>") {
-            paragraph "All selected Echos respond simultaneously."
-            input "ctrl_${idx}_targets", "capability.audioVolume",
-                  title: "Echo devices to control", multiple: true, required: true
+        if (type) {
+            section("<b>Target Echo devices</b>") {
+                paragraph "All selected Echos respond simultaneously."
+                input "ctrl_${idx}_targets", "capability.audioVolume",
+                      title: "Echo devices to control", multiple: true, required: true
+            }
         }
     }
 }
