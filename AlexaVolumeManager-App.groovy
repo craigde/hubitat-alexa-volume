@@ -194,6 +194,15 @@ def devicesPage() {
 def controllerPage(params) {
     if (params?.idx != null) state.editingIdx = params.idx
     def idx  = state.editingIdx ?: 0
+
+    // If this controller was just removed, show confirmation and go back
+    if (!(state.controllerIds ?: []).contains(idx)) {
+        return dynamicPage(name: "controllerPage", title: "Controller removed",
+                           install: false, uninstall: false, nextPage: "mainPage") {
+            section() { paragraph "This controller has been removed. Tap Done to return." }
+        }
+    }
+
     def type = settings["ctrl_${idx}_type"]
 
     dynamicPage(name: "controllerPage",
