@@ -33,12 +33,13 @@ preferences {
     page(name: "credentialsPage")
     page(name: "devicesPage")
     page(name: "controllerPage")
-    page(name: "removeControllerPage")
 }
 
 // ── Main ────────────────────────────────────────────────
 
 def mainPage() {
+    state.creatingNew = false
+
     dynamicPage(name: "mainPage", title: "",
                 install: true, uninstall: true) {
 
@@ -205,11 +206,11 @@ def devicesPage() {
 // ── Controller page (parameterised by idx) ───────────────
 
 def controllerPage(params) {
-    // Create a new controller if requested — but only once
-    // (submitOnChange re-renders re-pass the original params)
     if (params?.idx == "new") {
-        def ids = state.controllerIds ?: []
-        if (state.editingIdx == null || !ids.contains(state.editingIdx)) {
+        // Only create once per "new" click — skip on submitOnChange re-renders
+        if (!state.creatingNew) {
+            state.creatingNew = true
+            def ids    = state.controllerIds ?: []
             def newIdx = ids ? (ids.max() + 1) : 0
             ids << newIdx
             state.controllerIds = ids
@@ -217,7 +218,8 @@ def controllerPage(params) {
             logInfo "Added controller ${newIdx}"
         }
     } else if (params?.idx != null) {
-        state.editingIdx = params.idx
+        state.creatingNew = false
+        state.editingIdx  = params.idx
     }
     def idx = state.editingIdx ?: 0
 
@@ -233,7 +235,7 @@ def controllerPage(params) {
 
     dynamicPage(name: "controllerPage",
                 title: settings["ctrl_${idx}_name"] ?: "Controller ${idx + 1}",
-                install: false, uninstall: false) {
+                install: false, uninstall: false, nextPage: "mainPage") {
 
         section("<b>Name</b>") {
             input "ctrl_${idx}_name", "text",
