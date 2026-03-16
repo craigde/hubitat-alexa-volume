@@ -53,13 +53,26 @@ Each controller can target **multiple Echo devices simultaneously**.
 ### Step 1 — Get your Amazon refresh token (one-time, on your PC)
 
 1. Download `alexa-cookie-cli` for your OS from [github.com/adn77/alexa-cookie-cli/releases](https://github.com/adn77/alexa-cookie-cli/releases)
-2. Run it from a terminal — do not double-click
+2. Run it from a terminal — do not double-click. The tool defaults to German, so pass the domain and language flags for your region:
    ```
-   ./alexa-cookie-cli-macos        # Mac / Linux
-   alexa-cookie-cli-win-x64.exe    # Windows
+   # US (amazon.com)
+   ./alexa-cookie-cli -d amazon.com -a en_US -L en-US              # Mac / Linux
+   alexa-cookie-cli-win-x64.exe -d amazon.com -a en_US -L en-US    # Windows
+
+   # UK (amazon.co.uk)
+   ./alexa-cookie-cli -d amazon.co.uk -a en_GB -L en-GB
+
+   # Germany — no flags needed (default)
+   ./alexa-cookie-cli
+
+   # Canada
+   ./alexa-cookie-cli -d amazon.ca -a en_CA -L en-CA
+
+   # Australia
+   ./alexa-cookie-cli -d amazon.com.au -a en_AU -L en-AU
    ```
-3. Open **http://127.0.0.1:8080** in your browser and log in to Amazon
-4. Copy the `Atnr|...` token that appears in the terminal
+3. The tool starts a local server and displays a URL in the terminal (usually **http://127.0.0.1:8080**). Copy and paste that URL into your browser, then log in to Amazon
+4. Copy the `Atnr|...` token that appears in the terminal after login
 
 > If port 8080 is in use, add `-P 8081`. If you get a 404 after login, switch your Amazon account from SMS 2FA to an authenticator app.
 
