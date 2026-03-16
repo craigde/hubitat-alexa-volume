@@ -40,6 +40,14 @@ preferences {
 def mainPage() {
     state.creatingNew = false
 
+    // Process controller removals
+    if (controllersToRemove) {
+        controllersToRemove.each { idxStr ->
+            removeControllerSettings(idxStr.toInteger())
+        }
+        app.removeSetting("controllersToRemove")
+    }
+
     dynamicPage(name: "mainPage", title: "",
                 install: true, uninstall: true) {
 
@@ -77,6 +85,16 @@ def mainPage() {
                  title      : "+ Add controller",
                  description: "",
                  params     : [idx: "new"]
+
+            if (ctrlIds.size() > 0) {
+                def controllerOptions = [:]
+                ctrlIds.each { idx ->
+                    controllerOptions[idx.toString()] = settings["ctrl_${idx}_name"] ?: "Controller ${idx + 1}"
+                }
+                input "controllersToRemove", "enum",
+                      title: "Remove controllers", options: controllerOptions,
+                      multiple: true, submitOnChange: true
+            }
         }
 
         section("<b>Logging</b>") {
@@ -221,12 +239,7 @@ def controllerPage(params) {
     }
     def idx = state.editingIdx ?: 0
 
-    // Handle removal toggle
-    if (settings["ctrl_${idx}_confirmRemove"] == true) {
-        removeControllerSettings(idx)
-    }
-
-    // If this controller was removed, show confirmation
+    // If this controller was removed (from main page), redirect back
     if (!(state.controllerIds ?: []).contains(idx) && !state.creatingNew) {
         return dynamicPage(name: "controllerPage", title: "Controller removed",
                            install: false, uninstall: false, nextPage: "mainPage") {
@@ -325,12 +338,6 @@ def controllerPage(params) {
                 paragraph "All selected Echos respond simultaneously."
                 input "ctrl_${idx}_targets", "capability.audioVolume",
                       title: "Echo devices to control", multiple: true, required: true
-            }
-
-            section() {
-                input "ctrl_${idx}_confirmRemove", "bool",
-                      title: "Remove this controller", defaultValue: false,
-                      submitOnChange: true
             }
         }
     }
