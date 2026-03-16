@@ -223,11 +223,16 @@ def controllerPage(params) {
     }
     def idx = state.editingIdx ?: 0
 
-    // If this controller was removed, redirect back to main
+    // Handle removal toggle
+    if (settings["ctrl_${idx}_confirmRemove"] == true) {
+        removeControllerSettings(idx)
+    }
+
+    // If this controller was removed, show confirmation
     if (!(state.controllerIds ?: []).contains(idx)) {
         return dynamicPage(name: "controllerPage", title: "Controller removed",
                            install: false, uninstall: false, nextPage: "mainPage") {
-            section() { paragraph "Controller removed. Tap Next to return." }
+            section() { paragraph "Controller has been removed. Tap Next to return." }
         }
     }
 
@@ -315,29 +320,10 @@ def controllerPage(params) {
             }
 
             section() {
-                href "removeControllerPage",
-                     title      : "Remove this controller",
-                     description: "",
-                     params     : [idx: idx]
+                input "ctrl_${idx}_confirmRemove", "bool",
+                      title: "Remove this controller", defaultValue: false,
+                      submitOnChange: true
             }
-        }
-    }
-}
-
-// ── Remove controller confirmation ────────────────────────
-
-def removeControllerPage(params) {
-    if (params?.idx != null) state.removingIdx = params.idx
-    def idx  = state.removingIdx ?: 0
-    def name = settings["ctrl_${idx}_name"] ?: "Controller ${idx + 1}"
-
-    // Perform the removal (safe to do here — no scheduling during page render)
-    removeControllerSettings(idx)
-
-    dynamicPage(name: "removeControllerPage", title: "Controller removed",
-                install: false, uninstall: false, nextPage: "mainPage") {
-        section() {
-            paragraph "<b>${name}</b> has been removed. Tap Next to return."
         }
     }
 }
@@ -836,7 +822,7 @@ private removeControllerSettings(int idx) {
     state.controllerIds = (state.controllerIds ?: []) - [idx]
     ["name","type","device","upBtn","downBtn","muteBtn","step","dblTap","hold",
      "sliderDevice","muteDev","muteBtnNum","upDev","upBtnNum","downDev","downBtnNum",
-     "btnMuteDev","btnMuteBtnNum","targets","remove"].each { app.removeSetting("ctrl_${idx}_${it}") }
+     "btnMuteDev","btnMuteBtnNum","targets","remove","confirmRemove"].each { app.removeSetting("ctrl_${idx}_${it}") }
 }
 
 // -------------------------------------------------------
