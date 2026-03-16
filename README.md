@@ -71,8 +71,8 @@ Each controller can target **multiple Echo devices simultaneously**.
    # Australia
    ./alexa-cookie-cli -d amazon.com.au -a en_AU -L en-AU
    ```
-3. Open **http://127.0.0.1:8080** in your browser and log in to Amazon
-4. Copy the `Atnr|...` token that appears in the terminal
+3. The tool starts a local server and displays a URL in the terminal (usually **http://127.0.0.1:8080**). Copy and paste that URL into your browser, then log in to Amazon
+4. Copy the `Atnr|...` token that appears in the terminal after login
 
 > If port 8080 is in use, add `-P 8081`. If you get a 404 after login, switch your Amazon account from SMS 2FA to an authenticator app.
 

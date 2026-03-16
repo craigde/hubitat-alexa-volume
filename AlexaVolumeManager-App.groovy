@@ -131,8 +131,8 @@ def credentialsPage() {
                       "<code>alexa-cookie-cli -d amazon.co.uk -a en_GB -L en-GB</code> (UK)<br>" +
                       "<code>alexa-cookie-cli -d amazon.ca -a en_CA -L en-CA</code> (Canada)<br>" +
                       "<code>alexa-cookie-cli -d amazon.com.au -a en_AU -L en-AU</code> (Australia)<br>" +
-                      "3. Open <b>http://127.0.0.1:8080</b> and log in to Amazon<br>" +
-                      "4. Copy the <code>Atnr|...</code> token from the terminal output"
+                      "3. Copy the URL shown in the terminal (usually <b>http://127.0.0.1:8080</b>) into your browser and log in to Amazon<br>" +
+                      "4. Copy the <code>Atnr|...</code> token from the terminal after login"
         }
 
         section("<b>Credentials</b>") {
