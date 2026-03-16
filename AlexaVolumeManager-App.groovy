@@ -105,16 +105,18 @@ def credentialsPage() {
             // Using "text" not "password" so the token is visible for debugging
             input "refreshToken",
                   "text",
-                  title      : "Amazon refresh token",
-                  description: "Paste the full Atnr|... string",
-                  required   : true
+                  title         : "Amazon refresh token",
+                  description   : "Paste the full Atnr|... string",
+                  required      : true,
+                  submitOnChange: true
 
             input "amazonDomain",
                   "enum",
-                  title       : "Amazon domain",
-                  options     : ["amazon.com","amazon.co.uk","amazon.de","amazon.com.au","amazon.ca"],
-                  defaultValue: "amazon.com",
-                  required    : true
+                  title         : "Amazon domain",
+                  options       : ["amazon.com","amazon.co.uk","amazon.de","amazon.com.au","amazon.ca"],
+                  defaultValue  : "amazon.com",
+                  required      : true,
+                  submitOnChange: true
 
             input "connectBtn", "button", title: "Connect to Amazon"
         }
