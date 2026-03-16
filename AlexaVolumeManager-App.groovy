@@ -617,28 +617,24 @@ private String getAccessToken() {
 private Map exchangeForCookies(String accessToken) {
     def domain   = amazonDomain ?: "amazon.com"
     def list     = [], csrf = null
-    def bodyMap  = [
-        "requested_token_type": "auth_cookies",
-        "domain"              : ".${domain}",
-        "source_token_type"   : "access_token",
-        "source_token"        : accessToken
-    ]
-    def bodyJson = groovy.json.JsonOutput.toJson(bodyMap)
+    def bodyStr  = "di.os.name=android&app_name=Amazon%20Alexa&di.hw.version=phone" +
+                   "&di.sdk.version=6.12.4&di.os.version=22" +
+                   "&source_token=${URLEncoder.encode(accessToken, 'UTF-8')}" +
+                   "&requested_token_type=auth_cookies&domain=.${domain}&source_token_type=access_token"
     def url      = "https://www.${domain}/ap/exchangetoken/cookies"
 
     logTrace "exchangeForCookies: POST ${url}"
-    logTrace "exchangeForCookies: body=${bodyJson}"
+    logTrace "exchangeForCookies: body=${bodyStr}"
 
     try {
         httpPost([
             uri            : url,
             headers        : [
-                "Content-Type"               : "application/json",
+                "Content-Type"               : "application/x-www-form-urlencoded",
                 "x-amzn-identity-auth-domain": "api.amazon.com",
-                "User-Agent"                 : "AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone",
-                "Accept"                     : "application/json"
+                "User-Agent"                 : "AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/16.6/iPhone"
             ],
-            body           : bodyJson,
+            body           : bodyStr,
             followRedirects: true
         ]) { resp ->
             logDebug "exchangeForCookies: response status=${resp.status}"
