@@ -33,6 +33,7 @@ preferences {
     page(name: "credentialsPage")
     page(name: "devicesPage")
     page(name: "controllerPage")
+    page(name: "removeControllerPage")
 }
 
 // ── Main ────────────────────────────────────────────────
@@ -197,13 +198,7 @@ def controllerPage(params) {
     if (params?.idx != null) state.editingIdx = params.idx
     def idx  = state.editingIdx ?: 0
 
-    // If remove toggle was switched on, perform the removal
-    if (settings["ctrl_${idx}_remove"] == true) {
-        app.removeSetting("ctrl_${idx}_remove")
-        removeController(idx)
-    }
-
-    // If this controller was removed, show confirmation and go back
+    // If this controller was removed, redirect back to main
     if (!(state.controllerIds ?: []).contains(idx)) {
         return dynamicPage(name: "controllerPage", title: "Controller removed",
                            install: false, uninstall: false, nextPage: "mainPage") {
@@ -294,9 +289,28 @@ def controllerPage(params) {
         }
 
         section() {
-            input "ctrl_${idx}_remove", "bool",
-                  title: "Remove this controller",
-                  defaultValue: false, submitOnChange: true
+            href "removeControllerPage",
+                 title      : "Remove this controller",
+                 description: "Permanently remove this controller",
+                 params     : [idx: idx]
+        }
+    }
+}
+
+// ── Remove controller confirmation ────────────────────────
+
+def removeControllerPage(params) {
+    if (params?.idx != null) state.removingIdx = params.idx
+    def idx  = state.removingIdx ?: 0
+    def name = settings["ctrl_${idx}_name"] ?: "Controller ${idx + 1}"
+
+    // Perform the removal (safe to do here — no scheduling during page render)
+    removeControllerSettings(idx)
+
+    dynamicPage(name: "removeControllerPage", title: "Controller removed",
+                install: false, uninstall: false, nextPage: "mainPage") {
+        section() {
+            paragraph "<b>${name}</b> has been removed. Tap Next to return."
         }
     }
 }
@@ -795,14 +809,12 @@ private syncChildDevices() {
     }
 }
 
-private removeController(int idx) {
+private removeControllerSettings(int idx) {
     logInfo "Removing controller ${idx}"
-    unsubscribe()
     state.controllerIds = (state.controllerIds ?: []) - [idx]
     ["name","type","device","upBtn","downBtn","muteBtn","step","dblTap","hold",
      "sliderDevice","muteDev","muteBtnNum","upDev","upBtnNum","downDev","downBtnNum",
      "btnMuteDev","btnMuteBtnNum","targets","remove"].each { app.removeSetting("ctrl_${idx}_${it}") }
-    initialize()
 }
 
 // -------------------------------------------------------
