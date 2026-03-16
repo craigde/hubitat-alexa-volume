@@ -126,7 +126,11 @@ def credentialsPage() {
         section("<b>How to get your refresh token</b>") {
             paragraph "1. Download <b>alexa-cookie-cli</b> from " +
                       "<a href='https://github.com/adn77/alexa-cookie-cli/releases'>github.com/adn77/alexa-cookie-cli/releases</a><br>" +
-                      "2. Run from a terminal — do not double-click<br>" +
+                      "2. Run from a terminal (do not double-click). It defaults to German — use these flags for your region:<br>" +
+                      "<code>alexa-cookie-cli -d amazon.com -a en_US -L en-US</code> (US)<br>" +
+                      "<code>alexa-cookie-cli -d amazon.co.uk -a en_GB -L en-GB</code> (UK)<br>" +
+                      "<code>alexa-cookie-cli -d amazon.ca -a en_CA -L en-CA</code> (Canada)<br>" +
+                      "<code>alexa-cookie-cli -d amazon.com.au -a en_AU -L en-AU</code> (Australia)<br>" +
                       "3. Open <b>http://127.0.0.1:8080</b> and log in to Amazon<br>" +
                       "4. Copy the <code>Atnr|...</code> token from the terminal output"
         }
