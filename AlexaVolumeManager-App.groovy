@@ -207,15 +207,13 @@ def devicesPage() {
 
 def controllerPage(params) {
     if (params?.idx == "new") {
-        // Only create once per "new" click — skip on submitOnChange re-renders
+        // Allocate an idx for the new controller but don't commit it yet
         if (!state.creatingNew) {
             state.creatingNew = true
             def ids    = state.controllerIds ?: []
             def newIdx = ids ? (ids.max() + 1) : 0
-            ids << newIdx
-            state.controllerIds = ids
-            state.editingIdx    = newIdx
-            logInfo "Added controller ${newIdx}"
+            state.editingIdx = newIdx
+            logDebug "New controller: allocated idx ${newIdx}"
         }
     } else if (params?.idx != null) {
         state.creatingNew = false
@@ -223,15 +221,30 @@ def controllerPage(params) {
     }
     def idx = state.editingIdx ?: 0
 
-    // If this controller was removed, redirect back to main
-    if (!(state.controllerIds ?: []).contains(idx)) {
+    // Handle removal toggle
+    if (settings["ctrl_${idx}_confirmRemove"] == true) {
+        removeControllerSettings(idx)
+    }
+
+    // If this controller was removed, show confirmation
+    if (!(state.controllerIds ?: []).contains(idx) && !state.creatingNew) {
         return dynamicPage(name: "controllerPage", title: "Controller removed",
                            install: false, uninstall: false, nextPage: "mainPage") {
-            section() { paragraph "Controller removed. Tap Next to return." }
+            section() { paragraph "Controller has been removed. Tap Next to return." }
         }
     }
 
     def type = settings["ctrl_${idx}_type"]
+
+    // Commit the new controller to the list once a type is selected
+    if (state.creatingNew && type) {
+        def ids = state.controllerIds ?: []
+        if (!ids.contains(idx)) {
+            ids << idx
+            state.controllerIds = ids
+            logInfo "Added controller ${idx}"
+        }
+    }
 
     dynamicPage(name: "controllerPage",
                 title: settings["ctrl_${idx}_name"] ?: "Controller ${idx + 1}",
@@ -315,29 +328,10 @@ def controllerPage(params) {
             }
 
             section() {
-                href "removeControllerPage",
-                     title      : "Remove this controller",
-                     description: "",
-                     params     : [idx: idx]
+                input "ctrl_${idx}_confirmRemove", "bool",
+                      title: "Remove this controller", defaultValue: false,
+                      submitOnChange: true
             }
-        }
-    }
-}
-
-// ── Remove controller confirmation ────────────────────────
-
-def removeControllerPage(params) {
-    if (params?.idx != null) state.removingIdx = params.idx
-    def idx  = state.removingIdx ?: 0
-    def name = settings["ctrl_${idx}_name"] ?: "Controller ${idx + 1}"
-
-    // Perform the removal (safe to do here — no scheduling during page render)
-    removeControllerSettings(idx)
-
-    dynamicPage(name: "removeControllerPage", title: "Controller removed",
-                install: false, uninstall: false, nextPage: "mainPage") {
-        section() {
-            paragraph "<b>${name}</b> has been removed. Tap Next to return."
         }
     }
 }
@@ -836,7 +830,7 @@ private removeControllerSettings(int idx) {
     state.controllerIds = (state.controllerIds ?: []) - [idx]
     ["name","type","device","upBtn","downBtn","muteBtn","step","dblTap","hold",
      "sliderDevice","muteDev","muteBtnNum","upDev","upBtnNum","downDev","downBtnNum",
-     "btnMuteDev","btnMuteBtnNum","targets","remove"].each { app.removeSetting("ctrl_${idx}_${it}") }
+     "btnMuteDev","btnMuteBtnNum","targets","remove","confirmRemove"].each { app.removeSetting("ctrl_${idx}_${it}") }
 }
 
 // -------------------------------------------------------
