@@ -71,12 +71,11 @@ def mainPage() {
                      title      : name,
                      description: "${typeLabel(type)} · ${targets?.size() ?: 0} Echo(s)",
                      params     : [idx: idx]
-                href "removeControllerPage",
-                     title      : "",
-                     description: "<small>Remove ${name}</small>",
-                     params     : [idx: idx]
             }
-            input "addController", "button", title: "+ Add controller"
+            href "controllerPage",
+                 title      : "+ Add controller",
+                 description: "",
+                 params     : [idx: "new"]
         }
 
         section("<b>Logging</b>") {
@@ -199,8 +198,18 @@ def devicesPage() {
 // ── Controller page (parameterised by idx) ───────────────
 
 def controllerPage(params) {
-    if (params?.idx != null) state.editingIdx = params.idx
-    def idx  = state.editingIdx ?: 0
+    // Create a new controller if requested
+    if (params?.idx == "new") {
+        def ids    = state.controllerIds ?: []
+        def newIdx = ids ? (ids.max() + 1) : 0
+        ids << newIdx
+        state.controllerIds = ids
+        state.editingIdx    = newIdx
+        logInfo "Added controller ${newIdx}"
+    } else if (params?.idx != null) {
+        state.editingIdx = params.idx
+    }
+    def idx = state.editingIdx ?: 0
 
     // If this controller was removed, redirect back to main
     if (!(state.controllerIds ?: []).contains(idx)) {
@@ -292,6 +301,13 @@ def controllerPage(params) {
                 input "ctrl_${idx}_targets", "capability.audioVolume",
                       title: "Echo devices to control", multiple: true, required: true
             }
+
+            section() {
+                href "removeControllerPage",
+                     title      : "Remove this controller",
+                     description: "",
+                     params     : [idx: idx]
+            }
         }
     }
 }
@@ -328,14 +344,6 @@ def appButtonHandler(btn) {
             break
         case "syncDevices":
             syncChildDevices()
-            break
-        case "addController":
-            def ids    = state.controllerIds ?: []
-            def newIdx = ids ? (ids.max() + 1) : 0
-            ids << newIdx
-            state.controllerIds = ids
-            state.editingIdx    = newIdx
-            logInfo "Added controller ${newIdx}"
             break
         default:
             break
