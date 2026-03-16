@@ -712,10 +712,10 @@ private fetchEchoDevices() {
             if (resp.status == 200) {
                 def echoMap = [:], typeMap = [:]
                 resp.data?.devices?.each { d ->
-                    logTrace "fetchEchoDevices: checking device='${d.accountName}' family=${d.deviceFamily} caps=${d.capabilities?.collect { it.interfaceName }}"
-                    def canPlay = d.capabilities?.any { it.interfaceName in
+                    logTrace "fetchEchoDevices: checking device='${d.accountName}' family=${d.deviceFamily} caps=${d.capabilities}"
+                    def canPlay = d.capabilities?.any { it in
                         ["VOLUME_SETTING","AUDIO_PLAYER","NPE_ALERTS_VOLUME"] }
-                    if (canPlay || d.deviceFamily in ["ECHO","KNIGHT","TABLET"]) {
+                    if (canPlay || d.deviceFamily in ["ECHO","KNIGHT","TABLET","WHA"]) {
                         echoMap[d.serialNumber] = d.accountName
                         typeMap[d.serialNumber] = d.deviceType
                         logDebug "fetchEchoDevices: accepted '${d.accountName}' (${d.serialNumber})"
