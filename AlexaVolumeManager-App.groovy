@@ -725,7 +725,7 @@ private fetchEchoDevices() {
                     logTrace "fetchEchoDevices: checking device='${d.accountName}' family=${d.deviceFamily} caps=${d.capabilities}"
                     def hasVolume = d.capabilities?.any { it in
                         ["VOLUME_SETTING","AUDIO_PLAYER","NPE_ALERTS_VOLUME"] }
-                    if (hasVolume) {
+                    if (hasVolume && d.deviceFamily != "VOX") {
                         echoMap[d.serialNumber]    = d.accountName
                         typeMap[d.serialNumber]    = d.deviceType
                         familyMap[d.serialNumber]  = d.deviceFamily
