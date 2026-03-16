@@ -41,15 +41,13 @@ def mainPage() {
     dynamicPage(name: "mainPage", title: "Alexa Volume Manager",
                 install: true, uninstall: true) {
 
-        def connected    = state.authStatus == "Connected"
-        def childCount   = getChildDevices()?.size() ?: 0
-        def selectedCount = selectedEchoSerials?.size() ?: 0
-        def ctrlIds      = state.controllerIds ?: []
+        def connected  = state.authStatus == "Connected"
+        def childCount = getChildDevices()?.size() ?: 0
+        def ctrlIds    = state.controllerIds ?: []
 
         section() {
             paragraph "<b>Amazon:</b> ${connected ? '● Connected' : '○ ' + (state.authStatus ?: 'Not connected')}<br>" +
-                      "<b>Echo devices:</b> ${childCount} configured" +
-                      (selectedCount > childCount ? " (${selectedCount} selected — press Done to sync)" : "") + "<br>" +
+                      "<b>Echo devices:</b> ${childCount} configured<br>" +
                       "<b>Controllers:</b> ${ctrlIds.size()}"
         }
 
@@ -60,7 +58,7 @@ def mainPage() {
 
             href "devicesPage",
                  title      : "Echo devices",
-                 description: selectedCount ? "${selectedCount} selected, ${childCount} configured" : "Tap to select Echo devices"
+                 description: childCount ? "${childCount} device(s) configured" : "Tap to select Echo devices"
         }
 
         section("<b>Controllers</b>") {
@@ -150,6 +148,9 @@ def credentialsPage() {
 def devicesPage() {
     if (state.authStatus == "Connected" && !state.echoDevices) fetchEchoDevices()
 
+    // Auto-sync child devices whenever this page renders with a selection
+    if (selectedEchoSerials) syncChildDevices()
+
     dynamicPage(name: "devicesPage", title: "Echo devices",
                 install: false, uninstall: false) {
 
@@ -166,7 +167,7 @@ def devicesPage() {
 
         section("<b>Select which Echos to control</b>") {
             paragraph "A Hubitat device is created for each Echo you select. " +
-                      "These appear on dashboards and in Rule Machine."
+                      "Devices are created automatically when selected."
             input "showAllDevices", "bool",
                   title: "Show all Alexa devices (tablets, phone apps, etc.)",
                   defaultValue: false, submitOnChange: true
@@ -175,14 +176,13 @@ def devicesPage() {
                   title   : "Echo devices",
                   options : displayDevices,
                   multiple: true,
-                  required: true
-
-            input "syncDevices", "button", title: "Create / sync devices"
+                  required: true,
+                  submitOnChange: true
         }
 
         def children = getChildDevices()
         if (children) {
-            section("<b>Configured devices</b>") {
+            section("<b>Configured devices (${children.size()})</b>") {
                 children.each { paragraph "• ${it.label}" }
             }
         }
