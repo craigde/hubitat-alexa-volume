@@ -34,8 +34,8 @@ No cloud service, no subscription, no third-party server — just your Hubitat h
 
 | File | Type | Purpose |
 |---|---|---|
-| `AlexaVolumeControl-Driver.groovy` | Hubitat Driver | Handles Amazon auth and sends volume commands to Echo |
-| `AlexaKnobVolumeController-App.groovy` | Hubitat App | Connects the knob's rotation events to the driver |
+| `AlexaVolumeControl.groovy` | Hubitat Driver | Handles Amazon auth and sends volume commands to Echo |
+| `AlexaKnobVolumeController.groovy` | Hubitat App | Connects the knob's rotation events to the driver |
 
 ---
 
