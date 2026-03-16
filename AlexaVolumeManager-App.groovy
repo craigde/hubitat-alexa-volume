@@ -94,6 +94,13 @@ def mainPage() {
 // ── Credentials ─────────────────────────────────────────
 
 def credentialsPage() {
+    // Auto-connect when token is present and not yet connected
+    if (refreshToken && state.authStatus != "Connected") {
+        state.authStatus    = "Connecting..."
+        state.lastAuthError = null
+        if (authenticate()) fetchEchoDevices()
+    }
+
     dynamicPage(name: "credentialsPage", title: "Amazon credentials",
                 install: false, uninstall: false) {
 
@@ -122,7 +129,7 @@ def credentialsPage() {
                   required      : true,
                   submitOnChange: true
 
-            input "connectBtn", "button", title: "Connect to Amazon"
+            input "reconnectBtn", "button", title: "Reconnect"
         }
 
         section("<b>Status</b>") {
@@ -198,14 +205,17 @@ def devicesPage() {
 // ── Controller page (parameterised by idx) ───────────────
 
 def controllerPage(params) {
-    // Create a new controller if requested
+    // Create a new controller if requested — but only once
+    // (submitOnChange re-renders re-pass the original params)
     if (params?.idx == "new") {
-        def ids    = state.controllerIds ?: []
-        def newIdx = ids ? (ids.max() + 1) : 0
-        ids << newIdx
-        state.controllerIds = ids
-        state.editingIdx    = newIdx
-        logInfo "Added controller ${newIdx}"
+        def ids = state.controllerIds ?: []
+        if (state.editingIdx == null || !ids.contains(state.editingIdx)) {
+            def newIdx = ids ? (ids.max() + 1) : 0
+            ids << newIdx
+            state.controllerIds = ids
+            state.editingIdx    = newIdx
+            logInfo "Added controller ${newIdx}"
+        }
     } else if (params?.idx != null) {
         state.editingIdx = params.idx
     }
@@ -337,10 +347,13 @@ def removeControllerPage(params) {
 def appButtonHandler(btn) {
     logDebug "Button pressed: ${btn}"
     switch (btn) {
-        case "connectBtn":
-            state.authStatus    = "Connecting..."
+        case "reconnectBtn":
+            state.authStatus    = "Not connected"
             state.lastAuthError = null
-            if (authenticate()) fetchEchoDevices()
+            state.cookies       = null
+            state.csrfToken     = null
+            state.cookieExpiry  = null
+            // Page re-render will trigger auto-connect
             break
         case "syncDevices":
             syncChildDevices()
