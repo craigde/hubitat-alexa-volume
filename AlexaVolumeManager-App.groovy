@@ -562,9 +562,16 @@ private boolean authenticate() {
     state.cookies       = cookies.cookieString
     state.csrfToken     = cookies.csrf
     state.cookieExpiry  = now() + (12 * 3600 * 1000L)
+
+    // If no CSRF from cookie exchange, fetch it from the Alexa webapp
+    if (!state.csrfToken) {
+        logDebug "authenticate: no CSRF from cookies — fetching from Alexa webapp"
+        fetchCsrfToken()
+    }
+
     state.authStatus    = "Connected"
     state.lastAuthError = null
-    logInfo "Authenticated — ${cookies.cookieString.split(';').size()} cookies captured, CSRF present: ${cookies.csrf ? 'yes' : 'no'}"
+    logInfo "Authenticated — ${cookies.cookieString.split(';').size()} cookies captured, CSRF present: ${state.csrfToken ? 'yes' : 'no'}"
     return true
 }
 
@@ -599,33 +606,36 @@ private Map exchangeForCookies() {
             logTrace "exchangeForCookies: response headers=${resp.headers?.collect { "${it.name}: ${it.value}" }?.join(' | ')}"
             logTrace "exchangeForCookies: response body=${resp.data}"
 
-            // Path 1 — cookies in set-cookie response headers
-            resp.headers.each { h ->
-                if (h.name?.toLowerCase() == "set-cookie") {
-                    logTrace "exchangeForCookies: set-cookie header=${h.value}"
-                    def nv = h.value?.split(";")?.getAt(0)?.trim()
-                    if (nv) {
-                        list << nv
-                        if (nv.startsWith("csrf=")) csrf = nv.replace("csrf=", "")
-                    }
-                }
-            }
-            logDebug "exchangeForCookies: ${list.size()} cookies found in response headers"
-
-            // Path 2 — cookies inside JSON response body (some Amazon versions)
-            if (list.isEmpty() && resp.data) {
-                logDebug "exchangeForCookies: no header cookies — checking JSON body"
+            // Primary source: cookies in JSON response body (contains the auth cookies)
+            def cookieNames = [] as Set
+            if (resp.data) {
                 def cookies = resp.data?.response?.tokens?.cookies
                 logTrace "exchangeForCookies: body cookies map=${cookies}"
                 cookies?.each { domainKey, cookieList ->
                     cookieList?.each { c ->
                         def nv = "${c.Name}=${c.Value}"
                         list << nv
-                        logTrace "exchangeForCookies: body cookie name=${c.Name}"
+                        cookieNames << c.Name
+                        logTrace "exchangeForCookies: body cookie ${c.Name} (HttpOnly=${c.HttpOnly})"
                         if (c.Name == "csrf") csrf = c.Value
                     }
                 }
-                logDebug "exchangeForCookies: ${list.size()} cookies found in JSON body"
+                logDebug "exchangeForCookies: ${list.size()} cookies from JSON body: ${cookieNames.join(', ')}"
+            }
+
+            // Also grab any set-cookie headers not already in the body
+            resp.headers.each { h ->
+                if (h.name?.toLowerCase() == "set-cookie") {
+                    def nv = h.value?.split(";")?.getAt(0)?.trim()
+                    if (nv) {
+                        def name = nv.split("=")[0]
+                        if (!cookieNames.contains(name)) {
+                            list << nv
+                            logTrace "exchangeForCookies: header cookie ${name} (not in body)"
+                            if (name == "csrf") csrf = nv.replace("csrf=", "")
+                        }
+                    }
+                }
             }
         }
     } catch (Exception e) {
@@ -642,6 +652,39 @@ private Map exchangeForCookies() {
     logDebug "exchangeForCookies: total=${list.size()} cookies, csrf=${csrf ? 'present' : 'missing'}"
     logTrace "exchangeForCookies: cookie names=${list.collect { it.split('=')[0] }.join(', ')}"
     return [cookieString: list.join("; "), csrf: csrf ?: ""]
+}
+
+private fetchCsrfToken() {
+    def domain = amazonDomain ?: "amazon.com"
+    def url    = "https://alexa.${domain}/api/language"
+    logTrace "fetchCsrfToken: GET ${url}"
+    try {
+        httpGet([
+            uri    : url,
+            headers: [
+                "Cookie"    : state.cookies ?: "",
+                "User-Agent": "AmazonWebView/Amazon Alexa/2.2.651540.0/iOS/16.6/iPhone",
+                "Accept"    : "application/json",
+                "Referer"   : "https://alexa.${domain}/spa/index.html"
+            ]
+        ]) { resp ->
+            logDebug "fetchCsrfToken: response status=${resp.status}"
+            resp.headers.each { h ->
+                if (h.name?.toLowerCase() == "set-cookie") {
+                    def nv = h.value?.split(";")?.getAt(0)?.trim()
+                    if (nv?.startsWith("csrf=")) {
+                        state.csrfToken = nv.replace("csrf=", "")
+                        // Add csrf cookie to stored cookies
+                        state.cookies = state.cookies + "; " + nv
+                        logDebug "fetchCsrfToken: CSRF obtained"
+                    }
+                }
+            }
+        }
+    } catch (Exception e) {
+        log.error "AlexaManager: fetchCsrfToken exception — ${e.message}"
+        logTrace "fetchCsrfToken: full exception=${e}"
+    }
 }
 
 private ensureAuthenticated() {
