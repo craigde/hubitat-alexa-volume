@@ -197,11 +197,17 @@ def controllerPage(params) {
     if (params?.idx != null) state.editingIdx = params.idx
     def idx  = state.editingIdx ?: 0
 
-    // If this controller was just removed, show confirmation and go back
+    // If remove toggle was switched on, perform the removal
+    if (settings["ctrl_${idx}_remove"] == true) {
+        app.removeSetting("ctrl_${idx}_remove")
+        removeController(idx)
+    }
+
+    // If this controller was removed, show confirmation and go back
     if (!(state.controllerIds ?: []).contains(idx)) {
         return dynamicPage(name: "controllerPage", title: "Controller removed",
                            install: false, uninstall: false, nextPage: "mainPage") {
-            section() { paragraph "This controller has been removed. Tap Done to return." }
+            section() { paragraph "Controller removed. Tap Next to return." }
         }
     }
 
@@ -288,7 +294,9 @@ def controllerPage(params) {
         }
 
         section() {
-            input "ctrl_${idx}_remove", "button", title: "Remove this controller"
+            input "ctrl_${idx}_remove", "bool",
+                  title: "Remove this controller",
+                  defaultValue: false, submitOnChange: true
         }
     }
 }
@@ -317,9 +325,7 @@ def appButtonHandler(btn) {
             logInfo "Added controller ${newIdx}"
             break
         default:
-            if (btn ==~ /ctrl_(\d+)_remove/) {
-                removeController((btn =~ /ctrl_(\d+)_remove/)[0][1].toInteger())
-            }
+            break
     }
 }
 
@@ -795,7 +801,7 @@ private removeController(int idx) {
     state.controllerIds = (state.controllerIds ?: []) - [idx]
     ["name","type","device","upBtn","downBtn","muteBtn","step","dblTap","hold",
      "sliderDevice","muteDev","muteBtnNum","upDev","upBtnNum","downDev","downBtnNum",
-     "btnMuteDev","btnMuteBtnNum","targets"].each { app.removeSetting("ctrl_${idx}_${it}") }
+     "btnMuteDev","btnMuteBtnNum","targets","remove"].each { app.removeSetting("ctrl_${idx}_${it}") }
     initialize()
 }
 
