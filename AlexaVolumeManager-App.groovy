@@ -148,6 +148,9 @@ def credentialsPage() {
 def devicesPage() {
     if (state.authStatus == "Connected" && !state.echoDevices) fetchEchoDevices()
 
+    // Auto-sync child devices whenever this page renders with a selection
+    if (selectedEchoSerials) syncChildDevices()
+
     dynamicPage(name: "devicesPage", title: "Echo devices",
                 install: false, uninstall: false) {
 
@@ -164,7 +167,7 @@ def devicesPage() {
 
         section("<b>Select which Echos to control</b>") {
             paragraph "A Hubitat device is created for each Echo you select. " +
-                      "These appear on dashboards and in Rule Machine."
+                      "Devices are created automatically when selected."
             input "showAllDevices", "bool",
                   title: "Show all Alexa devices (tablets, phone apps, etc.)",
                   defaultValue: false, submitOnChange: true
@@ -173,14 +176,13 @@ def devicesPage() {
                   title   : "Echo devices",
                   options : displayDevices,
                   multiple: true,
-                  required: true
-
-            input "syncDevices", "button", title: "Create / sync devices"
+                  required: true,
+                  submitOnChange: true
         }
 
         def children = getChildDevices()
         if (children) {
-            section("<b>Configured devices</b>") {
+            section("<b>Configured devices (${children.size()})</b>") {
                 children.each { paragraph "• ${it.label}" }
             }
         }
@@ -192,6 +194,15 @@ def devicesPage() {
 def controllerPage(params) {
     if (params?.idx != null) state.editingIdx = params.idx
     def idx  = state.editingIdx ?: 0
+
+    // If this controller was just removed, show confirmation and go back
+    if (!(state.controllerIds ?: []).contains(idx)) {
+        return dynamicPage(name: "controllerPage", title: "Controller removed",
+                           install: false, uninstall: false, nextPage: "mainPage") {
+            section() { paragraph "This controller has been removed. Tap Done to return." }
+        }
+    }
+
     def type = settings["ctrl_${idx}_type"]
 
     dynamicPage(name: "controllerPage",
