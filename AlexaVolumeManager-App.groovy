@@ -207,15 +207,13 @@ def devicesPage() {
 
 def controllerPage(params) {
     if (params?.idx == "new") {
-        // Only create once per "new" click — skip on submitOnChange re-renders
+        // Allocate an idx for the new controller but don't commit it yet
         if (!state.creatingNew) {
             state.creatingNew = true
             def ids    = state.controllerIds ?: []
             def newIdx = ids ? (ids.max() + 1) : 0
-            ids << newIdx
-            state.controllerIds = ids
-            state.editingIdx    = newIdx
-            logInfo "Added controller ${newIdx}"
+            state.editingIdx = newIdx
+            logDebug "New controller: allocated idx ${newIdx}"
         }
     } else if (params?.idx != null) {
         state.creatingNew = false
@@ -229,7 +227,7 @@ def controllerPage(params) {
     }
 
     // If this controller was removed, show confirmation
-    if (!(state.controllerIds ?: []).contains(idx)) {
+    if (!(state.controllerIds ?: []).contains(idx) && !state.creatingNew) {
         return dynamicPage(name: "controllerPage", title: "Controller removed",
                            install: false, uninstall: false, nextPage: "mainPage") {
             section() { paragraph "Controller has been removed. Tap Next to return." }
@@ -237,6 +235,16 @@ def controllerPage(params) {
     }
 
     def type = settings["ctrl_${idx}_type"]
+
+    // Commit the new controller to the list once a type is selected
+    if (state.creatingNew && type) {
+        def ids = state.controllerIds ?: []
+        if (!ids.contains(idx)) {
+            ids << idx
+            state.controllerIds = ids
+            logInfo "Added controller ${idx}"
+        }
+    }
 
     dynamicPage(name: "controllerPage",
                 title: settings["ctrl_${idx}_name"] ?: "Controller ${idx + 1}",
