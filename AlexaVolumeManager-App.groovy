@@ -156,12 +156,22 @@ def devicesPage() {
             return
         }
 
+        // Filter the device list based on the showAllDevices toggle
+        def echoFamilies = ["ECHO", "KNIGHT", "ROOK", "WHA"]
+        def displayDevices = state.echoDevices.findAll { serial, name ->
+            showAllDevices || state.echoDeviceFamilies?.get(serial) in echoFamilies
+        }
+
         section("<b>Select which Echos to control</b>") {
             paragraph "A Hubitat device is created for each Echo you select. " +
                       "These appear on dashboards and in Rule Machine."
+            input "showAllDevices", "bool",
+                  title: "Show all Alexa devices (tablets, phone apps, etc.)",
+                  defaultValue: false, submitOnChange: true
+
             input "selectedEchoSerials", "enum",
                   title   : "Echo devices",
-                  options : state.echoDevices,
+                  options : displayDevices,
                   multiple: true,
                   required: true
 
@@ -710,22 +720,24 @@ private fetchEchoDevices() {
             logDebug "fetchEchoDevices: response status=${resp.status}"
             logTrace "fetchEchoDevices: response body=${resp.data}"
             if (resp.status == 200) {
-                def echoMap = [:], typeMap = [:]
+                def echoMap = [:], typeMap = [:], familyMap = [:]
                 resp.data?.devices?.each { d ->
                     logTrace "fetchEchoDevices: checking device='${d.accountName}' family=${d.deviceFamily} caps=${d.capabilities}"
-                    def canPlay = d.capabilities?.any { it in
+                    def hasVolume = d.capabilities?.any { it in
                         ["VOLUME_SETTING","AUDIO_PLAYER","NPE_ALERTS_VOLUME"] }
-                    if (canPlay || d.deviceFamily in ["ECHO","KNIGHT","TABLET","WHA"]) {
-                        echoMap[d.serialNumber] = d.accountName
-                        typeMap[d.serialNumber] = d.deviceType
-                        logDebug "fetchEchoDevices: accepted '${d.accountName}' (${d.serialNumber})"
+                    if (hasVolume && d.deviceFamily != "VOX") {
+                        echoMap[d.serialNumber]    = d.accountName
+                        typeMap[d.serialNumber]    = d.deviceType
+                        familyMap[d.serialNumber]  = d.deviceFamily
+                        logDebug "fetchEchoDevices: accepted '${d.accountName}' (family=${d.deviceFamily}, serial=${d.serialNumber})"
                     } else {
-                        logTrace "fetchEchoDevices: skipped '${d.accountName}' — not a volume-capable Echo"
+                        logTrace "fetchEchoDevices: skipped '${d.accountName}' — no volume capability"
                     }
                 }
-                state.echoDevices     = echoMap
-                state.echoDeviceTypes = typeMap
-                logInfo "Found ${echoMap.size()} Echo device(s): ${echoMap.values().join(', ')}"
+                state.echoDevices        = echoMap
+                state.echoDeviceTypes    = typeMap
+                state.echoDeviceFamilies = familyMap
+                logInfo "Found ${echoMap.size()} volume-capable device(s): ${echoMap.values().join(', ')}"
             } else {
                 log.error "AlexaManager: fetchEchoDevices HTTP ${resp.status}"
                 logDebug "fetchEchoDevices: error body=${resp.data}"
