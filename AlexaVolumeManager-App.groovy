@@ -437,7 +437,7 @@ private subscribeController(idx) {
 def pushHandler(evt) {
     def devId = evt.deviceId?.toString()
     def btn   = evt.value?.toInteger()
-    logDebug "pushHandler: deviceId=${devId} (${evt.deviceId?.getClass()?.simpleName}) button=${btn} controllerIds=${state.controllerIds}"
+    logDebug "pushHandler: deviceId=${devId} button=${btn} controllerIds=${state.controllerIds}"
 
     (state.controllerIds ?: []).each { idx ->
         def type    = settings["ctrl_${idx}_type"]
@@ -547,17 +547,22 @@ def volumeDown(childDevice, step) {
 
 def mute(childDevice) {
     logDebug "mute: ${childDevice.label}"
-    if (sendAlexaCommand(childDevice, [type:"VolumeMuteCommand", muted:true, contentFocusClientId:null])) {
+    def currentVol = childDevice.currentValue("volume")?.toInteger() ?: 50
+    if (sendAlexaCommand(childDevice, [type:"VolumeLevelCommand", volumeLevel:0, contentFocusClientId:null])) {
+        childDevice.updateDataValue("preMuteVolume", currentVol.toString())
+        childDevice.sendEvent(name: "volume", value: 0, unit: "%")
         childDevice.sendEvent(name: "mute", value: "muted")
-        logInfo "Muted: ${childDevice.label}"
+        logInfo "Muted: ${childDevice.label} (was ${currentVol}%)"
     }
 }
 
 def unmute(childDevice) {
     logDebug "unmute: ${childDevice.label}"
-    if (sendAlexaCommand(childDevice, [type:"VolumeMuteCommand", muted:false, contentFocusClientId:null])) {
+    def restoreVol = (childDevice.getDataValue("preMuteVolume") ?: "50").toInteger()
+    if (sendAlexaCommand(childDevice, [type:"VolumeLevelCommand", volumeLevel:restoreVol, contentFocusClientId:null])) {
+        childDevice.sendEvent(name: "volume", value: restoreVol, unit: "%")
         childDevice.sendEvent(name: "mute", value: "unmuted")
-        logInfo "Unmuted: ${childDevice.label}"
+        logInfo "Unmuted: ${childDevice.label} (restored to ${restoreVol}%)"
     }
 }
 
@@ -576,35 +581,31 @@ private boolean sendAlexaCommand(childDevice, Map body) {
     def devType  = childDevice.getDataValue("deviceType")
     def domain   = amazonDomain ?: "amazon.com"
     def url      = "https://alexa.${domain}/api/np/command?deviceSerialNumber=${serial}&deviceType=${devType}"
-    def bodyJson = groovy.json.JsonOutput.toJson(body)
-
-    logTrace "sendAlexaCommand: url=${url}"
-    logTrace "sendAlexaCommand: body=${bodyJson}"
+    logDebug "sendAlexaCommand: url=${url} body=${body}"
     logTrace "sendAlexaCommand: cookieLength=${state.cookies?.length()} csrfPresent=${state.csrfToken ? true : false}"
 
     def success = false
     try {
         httpPost([
-            uri    : url,
-            headers: alexaHeaders() + ["Content-Type":"application/json"],
-            body   : bodyJson
+            uri            : url,
+            headers        : alexaHeaders(),
+            requestContentType: "application/json",
+            body           : body
         ]) { resp ->
             logTrace "sendAlexaCommand: response status=${resp.status}"
-            logTrace "sendAlexaCommand: response headers=${resp.headers?.collect { "${it.name}: ${it.value}" }?.join(' | ')}"
-            if (resp.status in [200, 204]) {
-                success = true
-            } else {
-                log.error "AlexaManager: command failed for ${childDevice.label} — HTTP ${resp.status}"
-                logDebug "sendAlexaCommand: error body=${resp.data}"
-                if (resp.status in [401, 403]) {
-                    logInfo "Session rejected (${resp.status}) — re-authenticating"
-                    authenticate()
-                }
-            }
+            success = true
+        }
+    } catch (groovyx.net.http.HttpResponseException e) {
+        def status = e.statusCode
+        log.error "AlexaManager: command failed for ${childDevice.label} — HTTP ${status}"
+        logDebug "sendAlexaCommand: error response=${e.response?.data}"
+        if (status in [401, 403]) {
+            logInfo "Session rejected (${status}) — re-authenticating"
+            authenticate()
         }
     } catch (Exception e) {
         log.error "AlexaManager: sendAlexaCommand exception — ${e.message}"
-        logTrace "sendAlexaCommand: full exception=${e}"
+        logDebug "sendAlexaCommand: full exception=${e}"
     }
     return success
 }
