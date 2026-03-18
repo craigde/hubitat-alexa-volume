@@ -435,9 +435,9 @@ private subscribeController(idx) {
 // -------------------------------------------------------
 
 def pushHandler(evt) {
-    def devId = evt.deviceId
+    def devId = evt.deviceId?.toString()
     def btn   = evt.value?.toInteger()
-    logDebug "pushHandler: deviceId=${devId} button=${btn}"
+    logDebug "pushHandler: deviceId=${devId} (${evt.deviceId?.getClass()?.simpleName}) button=${btn} controllerIds=${state.controllerIds}"
 
     (state.controllerIds ?: []).each { idx ->
         def type    = settings["ctrl_${idx}_type"]
@@ -446,22 +446,24 @@ def pushHandler(evt) {
 
         switch (type) {
             case "rotary":
-                if (devId != settings["ctrl_${idx}_device"]?.id) return
+                def ctrlDevId = settings["ctrl_${idx}_device"]?.id?.toString()
+                logDebug "Controller ${idx} rotary: comparing devId='${devId}' with ctrlDevId='${ctrlDevId}'"
+                if (devId != ctrlDevId) return
                 def upBtn   = settings["ctrl_${idx}_upBtn"]?.toInteger()   ?: 2
                 def downBtn = settings["ctrl_${idx}_downBtn"]?.toInteger() ?: 3
                 def muteBtn = settings["ctrl_${idx}_muteBtn"]?.toInteger()
-                logTrace "Controller ${idx} rotary: btn=${btn} upBtn=${upBtn} downBtn=${downBtn} muteBtn=${muteBtn} step=${step}"
+                logDebug "Controller ${idx} rotary matched: btn=${btn} upBtn=${upBtn} downBtn=${downBtn} muteBtn=${muteBtn} step=${step} targets=${targets?.collect { it.label }}"
                 if      (btn == upBtn)              { logInfo "Controller ${idx}: volume up (step=${step})";   targets?.each { it.volumeUp(step) } }
                 else if (btn == downBtn)            { logInfo "Controller ${idx}: volume down (step=${step})"; targets?.each { it.volumeDown(step) } }
                 else if (muteBtn && btn == muteBtn) { logInfo "Controller ${idx}: mute toggle";               targets?.each { it.muteToggle() } }
-                else                               { logTrace "Controller ${idx}: button ${btn} not mapped — ignoring" }
+                else                               { logDebug "Controller ${idx}: button ${btn} not mapped — ignoring" }
                 break
 
             case "slider":
                 def mDev    = settings["ctrl_${idx}_muteDev"]
                 def mBtnNum = settings["ctrl_${idx}_muteBtnNum"]?.toInteger() ?: 1
                 logTrace "Controller ${idx} slider mute check: devId=${devId} muteDev=${mDev?.id} btn=${btn} muteBtnNum=${mBtnNum}"
-                if (devId == mDev?.id && btn == mBtnNum) { logInfo "Controller ${idx}: mute toggle"; targets?.each { it.muteToggle() } }
+                if (devId == mDev?.id?.toString() && btn == mBtnNum) { logInfo "Controller ${idx}: mute toggle"; targets?.each { it.muteToggle() } }
                 break
 
             case "buttons":
@@ -472,21 +474,21 @@ def pushHandler(evt) {
                 def downBtnNum = settings["ctrl_${idx}_downBtnNum"]?.toInteger()    ?: 2
                 def mBtnNum    = settings["ctrl_${idx}_btnMuteBtnNum"]?.toInteger() ?: 3
                 logTrace "Controller ${idx} buttons: devId=${devId} btn=${btn} up=${upDev?.id}:${upBtnNum} down=${downDev?.id}:${downBtnNum} mute=${mDev?.id}:${mBtnNum}"
-                if      (devId == upDev?.id   && btn == upBtnNum)     { logInfo "Controller ${idx}: volume up (step=${step})";   targets?.each { it.volumeUp(step) } }
-                else if (devId == downDev?.id && btn == downBtnNum)   { logInfo "Controller ${idx}: volume down (step=${step})"; targets?.each { it.volumeDown(step) } }
-                else if (mDev && devId == mDev?.id && btn == mBtnNum) { logInfo "Controller ${idx}: mute toggle";               targets?.each { it.muteToggle() } }
+                if      (devId == upDev?.id?.toString()   && btn == upBtnNum)     { logInfo "Controller ${idx}: volume up (step=${step})";   targets?.each { it.volumeUp(step) } }
+                else if (devId == downDev?.id?.toString() && btn == downBtnNum)   { logInfo "Controller ${idx}: volume down (step=${step})"; targets?.each { it.volumeDown(step) } }
+                else if (mDev && devId == mDev?.id?.toString() && btn == mBtnNum) { logInfo "Controller ${idx}: mute toggle";               targets?.each { it.muteToggle() } }
                 break
         }
     }
 }
 
 def levelHandler(evt) {
-    def devId = evt.deviceId
+    def devId = evt.deviceId?.toString()
     def level = evt.value?.toInteger()
     logDebug "levelHandler: deviceId=${devId} level=${level}"
     (state.controllerIds ?: []).each { idx ->
         if (settings["ctrl_${idx}_type"] != "slider") return
-        if (devId != settings["ctrl_${idx}_sliderDevice"]?.id) return
+        if (devId != settings["ctrl_${idx}_sliderDevice"]?.id?.toString()) return
         logInfo "Controller ${idx}: setVolume(${level})"
         settings["ctrl_${idx}_targets"]?.each { it.setVolume(level) }
     }
@@ -494,11 +496,11 @@ def levelHandler(evt) {
 
 def doubleTapHandler(evt) {
     if (evt.value?.toInteger() != 1) return
-    def devId = evt.deviceId
+    def devId = evt.deviceId?.toString()
     logDebug "doubleTapHandler: deviceId=${devId}"
     (state.controllerIds ?: []).each { idx ->
         if (settings["ctrl_${idx}_type"] != "rotary") return
-        if (devId != settings["ctrl_${idx}_device"]?.id) return
+        if (devId != settings["ctrl_${idx}_device"]?.id?.toString()) return
         def action = settings["ctrl_${idx}_dblTap"] ?: "none"
         logInfo "Controller ${idx}: double-tap → ${action}"
         executeAction(idx, action)
@@ -507,11 +509,11 @@ def doubleTapHandler(evt) {
 
 def holdHandler(evt) {
     if (evt.value?.toInteger() != 1) return
-    def devId = evt.deviceId
+    def devId = evt.deviceId?.toString()
     logDebug "holdHandler: deviceId=${devId}"
     (state.controllerIds ?: []).each { idx ->
         if (settings["ctrl_${idx}_type"] != "rotary") return
-        if (devId != settings["ctrl_${idx}_device"]?.id) return
+        if (devId != settings["ctrl_${idx}_device"]?.id?.toString()) return
         def action = settings["ctrl_${idx}_hold"] ?: "none"
         logInfo "Controller ${idx}: hold → ${action}"
         executeAction(idx, action)
