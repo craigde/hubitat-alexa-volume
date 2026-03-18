@@ -388,7 +388,7 @@ def initialize() {
     if (refreshToken && state.authStatus != "Connected") authenticate()
     if (selectedEchoSerials) syncChildDevices()
     (state.controllerIds ?: []).each { subscribeController(it) }
-    runEvery12Hours("authenticate")
+    schedule("0 0 */12 * * ?", "authenticate")
 }
 
 // -------------------------------------------------------
